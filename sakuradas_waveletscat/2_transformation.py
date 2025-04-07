@@ -1,4 +1,5 @@
 import pickle
+import os
 import glob
 import sys
 import numpy as np
@@ -74,10 +75,11 @@ if __name__ == "__main__":
     hdf5_file_list = []
     for mm in range(N_minute):
         ts_utc = hdf5_starttime_utc + datetime.timedelta(minutes=mm)
+        print(hdf5_dirname+"decimator_"+ts_utc.strftime("%Y-%m-%d_%H.%M.%S")+"_UTC_"+"*.h5")
         filename = glob.glob(
             hdf5_dirname+"decimator_"+ts_utc.strftime("%Y-%m-%d_%H.%M.%S")+"_UTC_"+"*.h5"
         )[0] 
-        print(filename)     
+        
         hdf5_file_list.append(filename)
         
     stream_minute = Stream()
@@ -95,7 +97,6 @@ if __name__ == "__main__":
         if tr.stats.station in used_channel_list:
             stream_scat += tr.copy()
     
-    #stream_scat.plot(rasterized=True, equal_scale=False)
     
     
     # Extract segment length (from any layer)
@@ -152,6 +153,7 @@ if __name__ == "__main__":
     # Plot the waveform
     ax[0].plot(trace.times("matplotlib"), trace.data, rasterized=True, lw=0.6)
     #ax[0].set_ylim(-1e+2,1e+2)
+    ax[0].set_ylabel("Strain", fontsize=12)
 
     # First-order scattering coefficients
     ax[1].pcolormesh(timestamps, center_frequencies, order_1.T, rasterized=True)
@@ -178,6 +180,10 @@ if __name__ == "__main__":
     ax[1].tick_params(which='both', direction='out')
 
     # Show
+    plt.suptitle(stream_scat[0].stats.network.lower()+stream_scat[0].stats.station+" "+stream_scat[0].stats.starttime.strftime("%Y-%m-%d %H:%M:%S")+"-"+stream_scat[0].stats.endtime.strftime("%Y-%m-%d %H:%M:%S"), fontsize=12)
+    
+    os.makedirs("Figure/", exist_ok=True)
+    plt.savefig("Figure/scattering_coefficients_1st_"+hdf5_starttime_jst.strftime("%Y%m%d%H%M")+"_"+str(Nseconds)+".png", dpi=300, bbox_inches="tight")
     plt.show()
 
 
@@ -194,6 +200,7 @@ if __name__ == "__main__":
     #ax[0].set_ylim(-1e+2,1e+2)
     
     ax[0].set_xlim(hdf5_starttime_jst, hdf5_endttime_jst)
+    ax[0].set_ylabel("Strain", fontsize=12)
     
     for spine in ax[0].spines.values():
         spine.set_linewidth(1.5) 
@@ -222,6 +229,7 @@ if __name__ == "__main__":
         
 
     # Show
+    plt.suptitle(stream_scat[0].stats.network.lower()+stream_scat[0].stats.station+" "+stream_scat[0].stats.starttime.strftime("%Y-%m-%d %H:%M:%S")+"-"+stream_scat[0].stats.endtime.strftime("%Y-%m-%d %H:%M:%S"), fontsize=12)
     plt.show()
     
     
@@ -245,7 +253,8 @@ if __name__ == "__main__":
     
     Fcur_arr = list()
     for traces in stream_scat[channel_id].slide(segment_duration,segment_duration):
-        timestamps_spec.append(mdates.num2date(traces.times("matplotlib")[0]))
+        timestamps_spec.append(mdates.num2date(traces.times("matplotlib")[0])+datetime.timedelta(seconds=segment_duration_seconds*0.5))
+        print(mdates.num2date(traces.times("matplotlib")[0]))
         traces_sub = traces.data #np.array([trace.data[:-1] for trace in traces])
         freqVec, Fcur = spectral_func.spec(traces_sub, sampRate=sampling_rate_hertz, percent_costaper=0.05)
         indd = np.where( (freqVec>=0.1) & (freqVec<=sampling_rate_hertz/2) )[0]
@@ -257,16 +266,58 @@ if __name__ == "__main__":
 
 
     Fcur_arr = np.log10(np.array(Fcur_arr))
+    
+    
+    fig, ax = plt.subplots(2, sharex=True, figsize=(6,4))
 
+    # Plot the waveform
+    ax[0].plot(trace.times("matplotlib"), trace.data, rasterized=True, lw=0.6)
+    #ax[0].set_ylim(-1e+2,1e+2)
+    ax[0].set_ylabel("Strain", fontsize=12)
+    
+    # First-order scattering coefficients
+    
+    ax[1].pcolormesh(timestamps_spec, freqVec, Fcur_arr.T, rasterized=True, cmap=plt.cm.inferno)
+    # Axes labels
+    ax[1].set_yscale("log")
+    #ax[0].set_ylabel("Counts")
+    ax[1].set_ylabel("fc (Hz)", fontsize=12)
+    
+    ax[0].set_xlim(hdf5_starttime_jst, hdf5_endttime_jst)
+    ax[1].set_xlim(hdf5_starttime_jst, hdf5_endttime_jst)
+    
+    
+    for spine in ax[0].spines.values():
+        spine.set_linewidth(1.5) 
+    ax[0].tick_params(axis='both', which='major', length=4, width=1)  
+    ax[0].tick_params(axis='both', which='minor', length=2, width=0.75)
+    ax[0].tick_params(which='both', direction='out')
+    
+    for spine in ax[1].spines.values():
+        spine.set_linewidth(1.5) 
+    ax[1].tick_params(axis='both', which='major', length=4, width=1)  
+    ax[1].tick_params(axis='both', which='minor', length=2, width=0.75)
+    ax[1].tick_params(which='both', direction='out')
 
-    fig = plt.figure(figsize=(10,3))
-    ax = plt.subplot(111)
-    amp = np.nanmedian(Fcur_arr)
-    plt.pcolormesh(timestamps_spec, freqVec, Fcur_arr.T, rasterized=True, cmap=plt.cm.inferno)
-    plt.yscale('log')
-    plt.ylim(0.1,sampling_rate_hertz/2)
-    plt.ylabel('Frequency [Hz]', fontsize=14)
-    ax.set_xlim(timestamps_spec[0], timestamps_spec[-1]+datetime.timedelta(seconds=segment_duration_seconds))
-    ax.xaxis.set_minor_locator(mdates.HourLocator(interval=1)) 
+    # Show
+    plt.suptitle(stream_scat[0].stats.network.lower()+stream_scat[0].stats.station+" "+stream_scat[0].stats.starttime.strftime("%Y-%m-%d %H:%M:%S")+"-"+stream_scat[0].stats.endtime.strftime("%Y-%m-%d %H:%M:%S"), fontsize=12)
     plt.show()
+
+
+    
+
+
+    # fig = plt.figure(figsize=(10,3))
+    # ax = plt.subplot(111)
+    
+    # for spine in ax.spines.values():
+    #     spine.set_linewidth(1.5) 
+    # ax.tick_params(axis='both', which='major', length=4, width=1)  
+    # ax.tick_params(axis='both', which='minor', length=2, width=0.75)
+    # ax.tick_params(which='both', direction='out')
+        
+    # plt.ylim(0.1,sampling_rate_hertz/2)
+    # plt.ylabel('Frequency [Hz]', fontsize=14)
+    # ax.xaxis.set_minor_locator(mdates.HourLocator(interval=1)) 
+    # plt.show()
 
