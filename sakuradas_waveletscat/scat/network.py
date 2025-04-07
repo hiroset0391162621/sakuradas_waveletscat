@@ -7,10 +7,6 @@ try:
 except:
     tqdm = lambda x: x
 
-# from .operation import pool
-# from .wavelet import ComplexMorletBank
-
-
 from operation import pool
 from wavelet import ComplexMorletBank
 
@@ -34,11 +30,9 @@ class ScatteringNetwork:
         ]
 
     def __len__(self) -> int:
-        """Number of layers (or depth) of the scattering network."""
         return len(self.banks)
 
     def __repr__(self) -> str:
-        """String representation of the scattering network."""
         return (
             f"{self.__class__.__name__}("
             f"bins={self.bins}, "
@@ -53,19 +47,10 @@ class ScatteringNetwork:
         reduce_type: T.Union[T.Callable, None] = None,
     ) -> list:
         
-        # Initialize the scattering coefficients list
         output = list()
-
-        # Calculate coefficients
         for bank in self.banks:
-
-            # Get scalogram
             scalogram = bank.transform(segment)
-
-            # Replace input segment by scalogram for the next layer
             segment = scalogram
-
-            # Pool scalogram and append to output
             output.append(pool(scalogram, reduce_type))
 
         return output
@@ -76,10 +61,8 @@ class ScatteringNetwork:
         reduce_type: T.Union[T.Callable, None] = None,
     ) -> list:
         
-        # Initialize the scattering coefficients list
-        features = [[] for _ in range(len(self))]
 
-        # Calculate coefficients
+        features = [[] for _ in range(len(self))]
         iter = tqdm(segments) if self.verbose else segments
         for segment in iter:
             scatterings = self.transform_segment(segment, reduce_type)

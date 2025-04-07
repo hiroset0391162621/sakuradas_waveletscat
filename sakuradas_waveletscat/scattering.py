@@ -15,6 +15,7 @@ from Params import *
 sys.path.append("utils/")
 from read_hdf5 import read_hdf5
 import spectral_func
+from util_func import cosTaper
 
 sys.path.append("scat/")
 from network import ScatteringNetwork
@@ -26,7 +27,7 @@ except:
 plt.style.use(["science", "nature"])
 plt.rcParams["xtick.labelsize"] = 10
 plt.rcParams["ytick.labelsize"] = 10
-plt.rcParams["axes.linewidth"] = 1.0  # 軸の太さを設定。目盛りは変わらない
+plt.rcParams["axes.linewidth"] = 1.0
 plt.rcParams["xtick.major.width"] = 1.0
 plt.rcParams["ytick.major.width"] = 1.0
 plt.rcParams["xtick.minor.width"] = 0.8
@@ -40,27 +41,17 @@ plt.rcParams["ytick.minor.size"] = 4.0
 plt.rcParams["xtick.major.pad"] = "8"
 plt.rcParams["xtick.top"] = True
 plt.rcParams["ytick.right"] = True
-plt.rcParams["axes.edgecolor"] = "#08192D"  # 枠の色
-plt.rcParams["axes.labelcolor"] = "#08192D"  # labelの色
-plt.rcParams["xtick.color"] = "#08192D"  # xticksの色
-plt.rcParams["ytick.color"] = "#08192D"  # yticksの色
-plt.rcParams["text.color"] = "#08192D"  # annotate, labelの色
-plt.rcParams["legend.framealpha"] = 1.0  # legendの枠の透明度
+plt.rcParams["axes.edgecolor"] = "#08192D"
+plt.rcParams["axes.labelcolor"] = "#08192D"
+plt.rcParams["xtick.color"] = "#08192D"
+plt.rcParams["ytick.color"] = "#08192D"
+plt.rcParams["text.color"] = "#08192D"
+plt.rcParams["legend.framealpha"] = 1.0
 plt.rcParams["pdf.fonttype"] = 42
 plt.rcParams["text.usetex"] = False
 plt.rcParams["date.converter"] = "concise"
 
 
-def cosTaper(windL, percent):
-    N = windL
-    tp = np.ones(N)
-    for i in range(int(N*percent+1)):
-        tp[i] *= 0.5 * (1 - np.cos((np.pi * i) / ( N * percent)))
-
-    for i in range(int(N*(1-percent)), N):
-        tp[i] *= 0.5 * (1 - np.cos((np.pi * (i+1)) / ( N * percent)))
-
-    return tp
 
 if __name__ == "__main__":
     
@@ -117,17 +108,10 @@ if __name__ == "__main__":
         timestamps.append(mdates.num2date(traces[0].times(type="matplotlib")[0])+datetime.timedelta(seconds=segment_duration_seconds*0.5))
         
         traces_sub = np.array([trace.data[:-1] for trace in traces])
-        
-        
-        
         if traces_sub.shape[1]!= network_data.bins:
             padd = network_data.bins - traces_sub.shape[1]
             print(Nch, padd)
             traces_sub = np.concatenate((traces_sub, np.zeros((Nch,padd))), axis=1)
-            
-        # if np.nanmax(np.abs(traces_sub))<100:
-        #     #print('all zero', mdates.num2date(traces[0].times(type="matplotlib")[0]))
-        #     traces_sub *= np.nan
         
         traces_sub *= tp
         
@@ -302,22 +286,4 @@ if __name__ == "__main__":
     # Show
     plt.suptitle(stream_scat[0].stats.network.lower()+stream_scat[0].stats.station+" "+stream_scat[0].stats.starttime.strftime("%Y-%m-%d %H:%M:%S")+"-"+stream_scat[0].stats.endtime.strftime("%Y-%m-%d %H:%M:%S"), fontsize=12)
     plt.show()
-
-
-    
-
-
-    # fig = plt.figure(figsize=(10,3))
-    # ax = plt.subplot(111)
-    
-    # for spine in ax.spines.values():
-    #     spine.set_linewidth(1.5) 
-    # ax.tick_params(axis='both', which='major', length=4, width=1)  
-    # ax.tick_params(axis='both', which='minor', length=2, width=0.75)
-    # ax.tick_params(which='both', direction='out')
-        
-    # plt.ylim(0.1,sampling_rate_hertz/2)
-    # plt.ylabel('Frequency [Hz]', fontsize=14)
-    # ax.xaxis.set_minor_locator(mdates.HourLocator(interval=1)) 
-    # plt.show()
 

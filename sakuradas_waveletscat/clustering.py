@@ -30,7 +30,7 @@ except:
 plt.style.use(["science", "nature"])
 plt.rcParams["xtick.labelsize"] = 10
 plt.rcParams["ytick.labelsize"] = 10
-plt.rcParams["axes.linewidth"] = 1.0  # 軸の太さを設定。目盛りは変わらない
+plt.rcParams["axes.linewidth"] = 1.0
 plt.rcParams["xtick.major.width"] = 1.0
 plt.rcParams["ytick.major.width"] = 1.0
 plt.rcParams["xtick.minor.width"] = 0.8
@@ -44,12 +44,12 @@ plt.rcParams["ytick.minor.size"] = 4.0
 plt.rcParams["xtick.major.pad"] = "8"
 plt.rcParams["xtick.top"] = True
 plt.rcParams["ytick.right"] = True
-plt.rcParams["axes.edgecolor"] = "#08192D"  # 枠の色
-plt.rcParams["axes.labelcolor"] = "#08192D"  # labelの色
-plt.rcParams["xtick.color"] = "#08192D"  # xticksの色
-plt.rcParams["ytick.color"] = "#08192D"  # yticksの色
-plt.rcParams["text.color"] = "#08192D"  # annotate, labelの色
-plt.rcParams["legend.framealpha"] = 1.0  # legendの枠の透明度
+plt.rcParams["axes.edgecolor"] = "#08192D"
+plt.rcParams["axes.labelcolor"] = "#08192D"
+plt.rcParams["xtick.color"] = "#08192D"
+plt.rcParams["ytick.color"] = "#08192D"
+plt.rcParams["text.color"] = "#08192D"
+plt.rcParams["legend.framealpha"] = 1.0
 plt.rcParams["pdf.fonttype"] = 42
 plt.rcParams["text.usetex"] = False
 plt.rcParams["date.converter"] = "concise"
