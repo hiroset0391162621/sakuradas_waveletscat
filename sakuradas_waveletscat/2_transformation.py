@@ -163,6 +163,18 @@ if __name__ == "__main__":
     ax[0].set_xlim(hdf5_starttime_jst, hdf5_endttime_jst)
     ax[1].set_xlim(hdf5_starttime_jst, hdf5_endttime_jst)
     
+    
+    for spine in ax[0].spines.values():
+        spine.set_linewidth(1.5) 
+    ax[0].tick_params(axis='both', which='major', length=4, width=1)  
+    ax[0].tick_params(axis='both', which='minor', length=2, width=0.75)
+    ax[0].tick_params(which='both', direction='out')
+    
+    for spine in ax[1].spines.values():
+        spine.set_linewidth(1.5) 
+    ax[1].tick_params(axis='both', which='major', length=4, width=1)  
+    ax[1].tick_params(axis='both', which='minor', length=2, width=0.75)
+    ax[1].tick_params(which='both', direction='out')
 
     # Show
     plt.show()
@@ -181,6 +193,13 @@ if __name__ == "__main__":
     #ax[0].set_ylim(-1e+2,1e+2)
     
     ax[0].set_xlim(hdf5_starttime_jst, hdf5_endttime_jst)
+    
+    for spine in ax[0].spines.values():
+        spine.set_linewidth(1.5) 
+    ax[0].tick_params(axis='both', which='major', length=4, width=1)  
+    ax[0].tick_params(axis='both', which='minor', length=2, width=0.75)
+    ax[0].tick_params(which='both', direction='out')
+        
 
     # Second-order scattering coefficients
     for i in range(1,3):
@@ -194,13 +213,22 @@ if __name__ == "__main__":
         
         ax[i].set_xlim(hdf5_starttime_jst, hdf5_endttime_jst)
         
+        for spine in ax[i].spines.values():
+            spine.set_linewidth(1.5) 
+        ax[i].tick_params(axis='both', which='major', length=4, width=1)  
+        ax[i].tick_params(axis='both', which='minor', length=2, width=0.75)
+        ax[i].tick_params(which='both', direction='out')
+        
 
     # Show
     plt.show()
     
     
+    Nseconds = int( (hdf5_endttime_jst-hdf5_starttime_jst).total_seconds() )
+    
+    
     np.savez(
-        "example/scattering_coefficients"+hdf5_starttime_jst.strftime("%Y%m%d%H")+".npz",
+        "example/scattering_coefficients"+hdf5_starttime_jst.strftime("%Y%m%d%H%M")+"_"+str(Nseconds)+".npz",
         order_1=scattering_coefficients[0],
         order_2=scattering_coefficients[1],
         times=timestamps,
