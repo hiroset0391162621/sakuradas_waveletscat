@@ -49,6 +49,17 @@ plt.rcParams["text.usetex"] = False
 plt.rcParams["date.converter"] = "concise"
 
 
+def cosTaper(windL, percent):
+    N = windL
+    tp = np.ones(N)
+    for i in range(int(N*percent+1)):
+        tp[i] *= 0.5 * (1 - np.cos((np.pi * i) / ( N * percent)))
+
+    for i in range(int(N*(1-percent)), N):
+        tp[i] *= 0.5 * (1 - np.cos((np.pi * (i+1)) / ( N * percent)))
+
+    return tp
+
 if __name__ == "__main__":
     
     network_data = pickle.load(open("example/scattering_network.pickle", "rb"))
@@ -83,4 +94,114 @@ if __name__ == "__main__":
         if tr.stats.station in used_channel_list:
             stream_scat += tr.copy()
     
-    stream_scat.plot(rasterized=True, equal_scale=False)
+    #stream_scat.plot(rasterized=True, equal_scale=False)
+    
+    
+    # Extract segment length (from any layer)
+    segment_duration = network_data.bins / network_data.sampling_rate
+    
+
+    #overlap = 1 ### % overlap=1 means without overlapping
+    print('segment_duration', segment_duration)
+    Nch = len(stream_scat)
+
+    tp = cosTaper(network_data.bins, 0.05)
+
+    # Gather list for timestamps and segments
+    timestamps = list()
+    segments = list()
+    # Collect data and timestamps
+    for traces in stream_scat.slide(segment_duration, segment_duration * overlap):
+        timestamps.append(mdates.num2date(traces[0].times(type="matplotlib")[0])+datetime.timedelta(seconds=segment_duration_seconds*0.5))
+        
+        traces_sub = np.array([trace.data[:-1] for trace in traces])
+        
+        
+        
+        if traces_sub.shape[1]!= network_data.bins:
+            padd = network_data.bins - traces_sub.shape[1]
+            print(Nch, padd)
+            traces_sub = np.concatenate((traces_sub, np.zeros((Nch,padd))), axis=1)
+            
+        # if np.nanmax(np.abs(traces_sub))<100:
+        #     #print('all zero', mdates.num2date(traces[0].times(type="matplotlib")[0]))
+        #     traces_sub *= np.nan
+        
+        traces_sub *= tp
+        
+        
+        
+        segments.append(traces_sub)
+    
+    
+    scattering_coefficients = network_data.transform(segments, reduce_type=np.max)
+    
+    # Extract the first channel
+    channel_id = 0
+    trace = stream_scat[channel_id]
+    
+
+    order_1 = np.log10(scattering_coefficients[0][:, channel_id, :].squeeze())
+    center_frequencies = network_data.banks[0].centers
+
+
+    # Create figure and axes
+    fig, ax = plt.subplots(2, sharex=True, figsize=(6,4))
+
+    # Plot the waveform
+    ax[0].plot(trace.times("matplotlib"), trace.data, rasterized=True, lw=0.6)
+    #ax[0].set_ylim(-1e+2,1e+2)
+
+    # First-order scattering coefficients
+    ax[1].pcolormesh(timestamps, center_frequencies, order_1.T, rasterized=True)
+
+    # Axes labels
+    ax[1].set_yscale("log")
+    #ax[0].set_ylabel("Counts")
+    ax[1].set_ylabel("Center Frequency (Hz)", fontsize=12)
+    
+    ax[0].set_xlim(hdf5_starttime_jst, hdf5_endttime_jst)
+    ax[1].set_xlim(hdf5_starttime_jst, hdf5_endttime_jst)
+    
+
+    # Show
+    plt.show()
+
+
+
+    center_frequencies = network_data.banks[1].centers
+
+
+
+    # Create figure and axes
+    fig, ax = plt.subplots(3, sharex=True, figsize=(6,4))
+
+    # Plot the waveform
+    ax[0].plot(trace.times("matplotlib"), trace.data, rasterized=True, lw=0.6)
+    #ax[0].set_ylim(-1e+2,1e+2)
+    
+    ax[0].set_xlim(hdf5_starttime_jst, hdf5_endttime_jst)
+
+    # Second-order scattering coefficients
+    for i in range(1,3):
+        order_2 = np.log10(scattering_coefficients[1][:, channel_id, :][:,i-1,:].squeeze())
+        ax[i].pcolormesh(timestamps, center_frequencies, order_2.T, rasterized=True)
+        
+        # Axes labels
+        ax[i].set_yscale("log")
+        #ax[0].set_ylabel("Counts")
+        ax[i].set_ylabel("Center Frequency (Hz)", fontsize=12)
+        
+        ax[i].set_xlim(hdf5_starttime_jst, hdf5_endttime_jst)
+        
+
+    # Show
+    plt.show()
+    
+    
+    np.savez(
+        "example/scattering_coefficients"+hdf5_starttime_jst.strftime("%Y%m%d%H")+".npz",
+        order_1=scattering_coefficients[0],
+        order_2=scattering_coefficients[1],
+        times=timestamps,
+    )

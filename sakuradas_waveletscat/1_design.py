@@ -139,7 +139,7 @@ if __name__ == "__main__":
     fig.supylabel("Octaves (base 2 log)", fontsize=10)
     plt.suptitle('filter banks', fontsize=12)
     plt.tight_layout()        
-    #plt.savefig("filterbanks.pdf", dpi=100)
+    plt.savefig("filterbanks.pdf", dpi=100)
     #plt.savefig("filterbanks.png", dpi=100)
     plt.show()   
         
