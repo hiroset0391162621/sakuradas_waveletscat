@@ -1,5 +1,6 @@
 import pickle
 import os
+import glob
 import copy
 import sys
 import numpy as np
@@ -189,7 +190,7 @@ if __name__ == "__main__":
     n_times, n_coeff = scattering_coefficients.shape
     print("Collected {} samples of {} dimensions each.".format(n_times, n_coeff))
 
-    model = FastICA(n_components=9, whiten="unit-variance", random_state=42)
+    model = FastICA(n_components=5, whiten="unit-variance", random_state=42)
     #model = FastICA(n_components=10, whiten="unit-variance", random_state=42)
     #model = SparsePCA(n_components=10, random_state=0, ridge_alpha=1.0)
     features = model.fit_transform(scattering_coefficients)
@@ -215,27 +216,6 @@ if __name__ == "__main__":
             protocol=pickle.HIGHEST_PROTOCOL,
         )
     
-
-    # Figure instance
-    fig = plt.figure(figsize=(6,4))
-    ax = plt.axes()
-
-    # Plot features
-    ax.plot(times, 0.3*features_normalized + np.arange(features.shape[1]), rasterized=True)
-
-    # Labels
-    ax.set_ylabel("Feature index", fontsize=12)
-    ax.set_xlabel("Date and time", fontsize=12)
-    
-    for spine in ax.spines.values():
-        spine.set_linewidth(1.5) 
-    ax.tick_params(axis='both', which='major', length=4, width=1)  
-    ax.tick_params(axis='both', which='minor', length=2, width=0.75)
-    ax.tick_params(which='both', direction='out')
-
-    # Show
-    plt.show()
-    
     
     
     # Load features and datetimes from file
@@ -246,56 +226,68 @@ if __name__ == "__main__":
     # Load network
     network = pickle.load(open("example/scattering_network.pickle", "rb"))
 
-    print(features.shape)
+    print(times)
     
     Z = fastcluster.linkage(features, method='ward', metric='euclidean', preserve_input='True')
     
-    predictions = fcluster(Z, 5, criterion="distance")
-    N_CLUSTERS = predictions.max()
-    predictions -= 1
-
-    for i in range(N_CLUSTERS):
-        print(i, len(np.where(predictions==i)[0]))
-        
-    
-    SMOOTH_KERNEL = 1
-
-    # Convert predictions to one-hot encoding
-    one_hot = np.zeros((len(times), N_CLUSTERS + 1))
-    one_hot[np.arange(len(times)), predictions] = 1
-    # Plot the results
-    fig, ax = plt.subplots(figsize=(10, N_CLUSTERS*0.7))
-    # Plot each cluster as a separate line
-
-    for i in range(N_CLUSTERS): # 
-
-        # Obtain the detection rate by convolving with a boxcar kernel
-        detection_rate = np.convolve(one_hot[:, i], np.ones(SMOOTH_KERNEL), mode="same") / SMOOTH_KERNEL
-
-        # Plot the detection rate
-        ax.plot(times, 0.9*one_hot[:, i] + i, alpha=0.3, zorder=2, color='C'+str(i), rasterized=True)
-        ax.plot(times, 0.9*detection_rate + i, zorder=2, color='C'+str(i), rasterized=True)
-        #for j in range(len(one_hot[:, i])):
-        #    ax.plot([times[j],times[j]], [i, one_hot[j, i]+i], lw=0.1, alpha=0.3, zorder=2, color='C'+str(i), rasterized=True)
-        ax.annotate('cluster '+str(i+1), xy=(times[0],i+0.8), xycoords='data', fontsize=12, horizontalalignment='left', verticalalignment='top')
-        
-        for spine in ax.spines.values():
-            spine.set_linewidth(1.5) 
-        ax.tick_params(axis='both', which='major', length=4, width=1)  
-        ax.tick_params(axis='both', which='minor', length=2, width=0.75)
-        ax.tick_params(which='both', direction='out')
-
-    plt.yticks(())
-    #Labels
-    ax.set_ylabel("Detection rate", fontsize=14)
-    ax.axvline(x=datetime.datetime(2014,9,27,11,52), ls='--', color='red', zorder=1)
-    ax.xaxis.set_minor_locator(mdates.HourLocator(interval=1)) 
-    ax.set_xlim(times[0],times[-1]+datetime.timedelta(seconds=60))
-    #plt.title('V.SFT2', fontsize=14, y=1.01)
-
-    #plt.savefig('detection_rate.pdf', dpi=200)
-    plt.show()
-
-    threshold = 5
+    threshold = 8
+    predictions = fcluster(Z, threshold, criterion="distance")
     clustering(threshold, pooling='max', savefig=False)
+    
+    
+    hdf5_starttime_utc = hdf5_starttime_jst + datetime.timedelta(hours=-9)
+    hdf5_file_list = []
+    for mm in range(N_minute):
+        ts_utc = hdf5_starttime_utc + datetime.timedelta(minutes=mm)
+        filename = glob.glob(
+            hdf5_dirname+"decimator_"+ts_utc.strftime("%Y-%m-%d_%H.%M.%S")+"_UTC_"+"*.h5"
+        )[0] 
+        print(filename)     
+        hdf5_file_list.append(filename)
+        
+    stream_minute = Stream()
+    for i in range(len(hdf5_file_list)):
+        stream_minute += read_hdf5(hdf5_file_list[i], fiber)
+    
+    stream_minute.merge(method=1)
+    stream_minute.resample(Fs, no_filter=False, window="hann")
+    
+    print(stream_minute)
+
+    stream_scat = Stream()
+    print('channels', used_channel_list)
+    for tr in stream_minute:
+        if tr.stats.station in used_channel_list:
+            stream_scat += tr.copy()
+    
+    
+    fig = plt.figure(figsize=(12, 5), constrained_layout=True)
+    ax1 = plt.subplot(211)
+    ax1.plot(np.arange(0, windL, 1/Fs), stream_scat[0].data, color='black', lw=0.5)
+    ax1.set_xlim(0, windL)
+    for spine in ax1.spines.values():
+        spine.set_linewidth(1.5) 
+    ax1.tick_params(axis='both', which='major', length=4, width=1)  
+    ax1.tick_params(axis='both', which='minor', length=2, width=0.75)
+    ax1.tick_params(which='both', direction='out')
+    
+    ax2 = plt.subplot(212)
+    times_lapset = np.array( [ (times[_]-times[0]).total_seconds() for _ in range(len(times)) ] )
+    time_step = 0.5*(times_lapset[1]-times_lapset[0])
+    times_lapset += time_step
+    print(times_lapset)
+    ax2.scatter(times_lapset, predictions)
+    ax2.set_xlim(0, windL)
+    ax2.set_ylim(predictions.min()-1, predictions.max()+1)
+    for spine in ax2.spines.values():
+        spine.set_linewidth(1.5) 
+    ax2.tick_params(axis='both', which='major', length=4, width=1)  
+    ax2.tick_params(axis='both', which='minor', length=2, width=0.75)
+    ax2.tick_params(which='both', direction='out')
+    
+    plt.show()
+    
+    
+
+    
 

@@ -10,6 +10,7 @@ dependencies = [
     "matplotlib>=3.9.4",
     "numpy==1.26.4",
     "obspy>=1.4.1",
+    "pandas>=2.2.3",
     "scienceplots>=2.1.1",
     "scikit-learn>=1.6.1",
     "scipy>=1.13.1",

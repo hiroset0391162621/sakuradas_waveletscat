@@ -13,6 +13,7 @@ from Params import *
 
 sys.path.append("utils/")
 from read_hdf5 import read_hdf5
+import spectral_func
 
 sys.path.append("scat/")
 from network import ScatteringNetwork
@@ -65,8 +66,8 @@ if __name__ == "__main__":
     network_data = pickle.load(open("example/scattering_network.pickle", "rb"))
     
     
-    N_minute = int( (hdf5_endttime_jst - hdf5_starttime_jst).total_seconds() / 60.0 )
-    windL = 60.0*N_minute
+    
+    
     print("N_minute", N_minute)
     
     hdf5_starttime_utc = hdf5_starttime_jst + datetime.timedelta(hours=-9)
@@ -158,7 +159,7 @@ if __name__ == "__main__":
     # Axes labels
     ax[1].set_yscale("log")
     #ax[0].set_ylabel("Counts")
-    ax[1].set_ylabel("Center Frequency (Hz)", fontsize=12)
+    ax[1].set_ylabel("fc (Hz)", fontsize=12)
     
     ax[0].set_xlim(hdf5_starttime_jst, hdf5_endttime_jst)
     ax[1].set_xlim(hdf5_starttime_jst, hdf5_endttime_jst)
@@ -209,7 +210,7 @@ if __name__ == "__main__":
         # Axes labels
         ax[i].set_yscale("log")
         #ax[0].set_ylabel("Counts")
-        ax[i].set_ylabel("Center Frequency (Hz)", fontsize=12)
+        ax[i].set_ylabel("fc (Hz)", fontsize=12)
         
         ax[i].set_xlim(hdf5_starttime_jst, hdf5_endttime_jst)
         
@@ -233,3 +234,39 @@ if __name__ == "__main__":
         order_2=scattering_coefficients[1],
         times=timestamps,
     )
+    
+    
+    """
+    PSD
+    """
+    timestamps_spec = list()
+
+    # Collect data and timestamps
+    
+    Fcur_arr = list()
+    for traces in stream_scat[channel_id].slide(segment_duration,segment_duration):
+        timestamps_spec.append(mdates.num2date(traces.times("matplotlib")[0]))
+        traces_sub = traces.data #np.array([trace.data[:-1] for trace in traces])
+        freqVec, Fcur = spectral_func.spec(traces_sub, sampRate=sampling_rate_hertz, percent_costaper=0.05)
+        indd = np.where( (freqVec>=0.1) & (freqVec<=sampling_rate_hertz/2) )[0]
+        freqVec = freqVec[indd]
+        Fcur = Fcur[indd]
+        #freqVec = freqVec[::10]
+        #Fcur = Fcur[::10]
+        Fcur_arr.append(Fcur)
+
+
+    Fcur_arr = np.log10(np.array(Fcur_arr))
+
+
+    fig = plt.figure(figsize=(10,3))
+    ax = plt.subplot(111)
+    amp = np.nanmedian(Fcur_arr)
+    plt.pcolormesh(timestamps_spec, freqVec, Fcur_arr.T, rasterized=True, cmap=plt.cm.inferno)
+    plt.yscale('log')
+    plt.ylim(0.1,sampling_rate_hertz/2)
+    plt.ylabel('Frequency [Hz]', fontsize=14)
+    ax.set_xlim(timestamps_spec[0], timestamps_spec[-1]+datetime.timedelta(seconds=segment_duration_seconds))
+    ax.xaxis.set_minor_locator(mdates.HourLocator(interval=1)) 
+    plt.show()
+
