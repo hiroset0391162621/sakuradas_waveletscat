@@ -135,9 +135,9 @@ if __name__ == "__main__":
     fig, ax = plt.subplots(2, sharex=True, figsize=(6,4))
 
     # Plot the waveform
-    ax[0].plot(trace.times("matplotlib"), trace.data, rasterized=True, lw=0.6)
-    #ax[0].set_ylim(-1e+2,1e+2)
-    ax[0].set_ylabel("Strain", fontsize=12)
+    ax[0].plot(trace.times("matplotlib"), trace.data/np.nanmax(np.abs(trace.data)), rasterized=True, lw=0.6)
+    ax[0].set_ylim(-1,1)
+    
 
     # First-order scattering coefficients
     ax[1].pcolormesh(timestamps, center_frequencies, order_1.T, rasterized=True)
@@ -180,11 +180,10 @@ if __name__ == "__main__":
     fig, ax = plt.subplots(3, sharex=True, figsize=(6,4))
 
     # Plot the waveform
-    ax[0].plot(trace.times("matplotlib"), trace.data, rasterized=True, lw=0.6)
-    #ax[0].set_ylim(-1e+2,1e+2)
+    ax[0].plot(trace.times("matplotlib"), trace.data/np.nanmax(np.abs(trace.data)), rasterized=True, lw=0.6)
+    ax[0].set_ylim(-1,1)
     
     ax[0].set_xlim(hdf5_starttime_jst, hdf5_endttime_jst)
-    ax[0].set_ylabel("Strain", fontsize=12)
     
     for spine in ax[0].spines.values():
         spine.set_linewidth(1.5) 
@@ -255,9 +254,9 @@ if __name__ == "__main__":
     fig, ax = plt.subplots(2, sharex=True, figsize=(6,4))
 
     # Plot the waveform
-    ax[0].plot(trace.times("matplotlib"), trace.data, rasterized=True, lw=0.6)
-    #ax[0].set_ylim(-1e+2,1e+2)
-    ax[0].set_ylabel("Strain", fontsize=12)
+    ax[0].plot(trace.times("matplotlib"), trace.data/np.nanmax(np.abs(trace.data)), rasterized=True, lw=0.6)
+    ax[0].set_ylim(-1,1)
+    
     
     # First-order scattering coefficients
     
