@@ -14,8 +14,8 @@ fiber = 'nojiri' #'round'
 # hdf5_starttime_jst = datetime.datetime(2023, 12, 1, 0, 0, 0)
 # hdf5_endttime_jst = datetime.datetime(2023, 12, 1, 0, 10, 0)
 
-hdf5_starttime_jst = datetime.datetime(2025, 3, 27, 15, 29, 0)
-hdf5_endttime_jst = datetime.datetime(2025, 3, 27, 15, 39, 0)
+hdf5_starttime_jst = datetime.datetime(2025, 3, 27, 15, 0, 0)
+hdf5_endttime_jst = datetime.datetime(2025, 3, 27, 16, 0, 0)
 
 Nseconds = int( (hdf5_endttime_jst-hdf5_starttime_jst).total_seconds() )
 N_minute = int( (hdf5_endttime_jst - hdf5_starttime_jst).total_seconds() / 60.0 )
