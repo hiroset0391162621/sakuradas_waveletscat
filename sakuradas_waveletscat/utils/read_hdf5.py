@@ -65,7 +65,7 @@ def read_hdf5(filename, fiber):
     
     # print(st_minute)
     # print(st_minute[0].stats)
-    
+    # print(st_minute[0].data)
     
 
     return st_minute
