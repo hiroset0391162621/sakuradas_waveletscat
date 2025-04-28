@@ -382,7 +382,7 @@ if __name__ == "__main__":
         # plt.show()
         
         
-        Nseconds = int( (hdf5_endttime_jst-hdf5_starttime_jst).total_seconds() )
+        
         
         
         np.savez(
