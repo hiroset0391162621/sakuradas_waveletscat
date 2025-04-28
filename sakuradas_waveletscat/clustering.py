@@ -139,7 +139,7 @@ def cluster_and_plot_dendrogram( ustation, Z, threshold, default_color='black', 
     
     fig.patch.set_facecolor('white')
     plt.minorticks_off()
-    
+    plt.title(ustation, fontsize=12)
     plt.tight_layout()
     
     # if savefig:
@@ -151,7 +151,7 @@ def cluster_and_plot_dendrogram( ustation, Z, threshold, default_color='black', 
     #         plt.savefig(figout_dirname+'/dendrogram.pdf', dpi=200)
     
     plt.savefig("Figure/dendrogram_"+ustation+"_"+hdf5_starttime_jst.strftime("%Y%m%d%H%M")+"_"+str(Nseconds)+".png", dpi=300, bbox_inches="tight")
-    plt.show()
+    plt.close()
 
 def clustering(ustation, threshold, pooling='max', savefig=False):
     
@@ -370,7 +370,7 @@ if __name__ == "__main__":
     plt.tight_layout()
     
     plt.savefig("Figure/scattering_coefficients_allclusters_"+ustation+"_"+hdf5_starttime_jst.strftime("%Y%m%d%H%M")+"_"+str(Nseconds)+".png", dpi=300, bbox_inches="tight")
-    plt.show()
+    plt.close()
     
     
     ustation = 'noj'+used_channel_list[0]
@@ -441,7 +441,7 @@ if __name__ == "__main__":
     plt.suptitle(ustation, fontsize=12)
     
     plt.savefig("Figure/clustering_"+ustation+"_"+hdf5_starttime_jst.strftime("%Y%m%d%H%M")+"_"+str(Nseconds)+".png", dpi=300, bbox_inches="tight")
-    plt.show()
+    plt.close()
 
 
 

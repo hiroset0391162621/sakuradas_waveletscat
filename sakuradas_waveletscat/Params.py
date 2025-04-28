@@ -25,4 +25,4 @@ high_pass = 50
 
 hdf5_dirname = "/Users/hirosetakashi/Volumes/noise_monitoring/noise_monitoring/DAS/Tohoku_15/Fiber-2_HDF5/2025/03/27/"  #"hdf5/"
 
-used_channel_list = [str(_).zfill(4) for _ in range(100, 105, 5)]   
+used_channel_list = [str(_).zfill(4) for _ in range(500, 505, 5)]   
