@@ -18,7 +18,7 @@ from scipy.cluster import hierarchy
 from Params import *
 
 sys.path.append("utils/")
-from read_hdf5 import read_hdf5
+from read_hdf5 import read_hdf5, read_hdf5_singlechannel
 
 sys.path.append("scat/")
 from network import ScatteringNetwork
@@ -55,7 +55,17 @@ plt.rcParams["text.usetex"] = False
 plt.rcParams["date.converter"] = "concise"
 
 
-def cluster_and_plot_dendrogram( Z, threshold, default_color='black', pooling='max', savefig=True):
+import sys
+cptpath = r'get-cpt-master'
+sys.path.append(cptpath)
+import get_cpt
+
+print(get_cpt.basedir) # the local repo
+myurl_1 = 'get-cpt-master/cpt/rainbow.cpt'
+mygmt_cmaps = get_cpt.get_cmap(myurl_1, method='list', N=256)
+
+
+def cluster_and_plot_dendrogram( ustation, Z, threshold, default_color='black', pooling='max', savefig=True):
 
     # get cluster labels
     labels         = hierarchy.fcluster(Z, threshold, criterion='distance')-1
@@ -140,9 +150,10 @@ def cluster_and_plot_dendrogram( Z, threshold, default_color='black', pooling='m
     #         os.makedirs(figout_dirname, exist_ok=True)
     #         plt.savefig(figout_dirname+'/dendrogram.pdf', dpi=200)
     
+    plt.savefig("Figure/dendrogram_"+ustation+"_"+hdf5_starttime_jst.strftime("%Y%m%d%H%M")+"_"+str(Nseconds)+".png", dpi=300, bbox_inches="tight")
     plt.show()
 
-def clustering(threshold, pooling='max', savefig=False):
+def clustering(ustation, threshold, pooling='max', savefig=False):
     
     
     with np.load("example/independent_components_"+hdf5_starttime_jst.strftime("%Y%m%d%H%M")+"_"+str(Nseconds)+".npz", allow_pickle=True) as data:
@@ -153,7 +164,7 @@ def clustering(threshold, pooling='max', savefig=False):
 
     Z = fastcluster.linkage(features, method='ward', metric='euclidean', preserve_input='True') 
     
-    cluster_and_plot_dendrogram(copy.deepcopy(Z), threshold, default_color='black', pooling=pooling, savefig=savefig)
+    cluster_and_plot_dendrogram(ustation, copy.deepcopy(Z), threshold, default_color='black', pooling=pooling, savefig=savefig)
     
     
     np.save("dendrogram_"+hdf5_starttime_jst.strftime("%Y%m%d%H%M")+"_"+str(Nseconds)+'.npy', Z)
@@ -226,15 +237,144 @@ if __name__ == "__main__":
     # Load network
     network = pickle.load(open("example/scattering_network.pickle", "rb"))
 
-    print(times)
+    
     
     Z = fastcluster.linkage(features, method='ward', metric='euclidean', preserve_input='True')
     
     threshold = 8
     predictions = fcluster(Z, threshold, criterion="distance")
-    clustering(threshold, pooling='max', savefig=False)
+    
+    print(predictions)
+    
+    Nclusters = predictions.max()
     
     
+    
+    scattering_coefficients = []
+    times = []
+    Nseconds = int( (hdf5_endttime_jst-hdf5_starttime_jst).total_seconds() )
+    for _ in range(1):
+        
+        with np.load("example/scattering_coefficients"+hdf5_starttime_jst.strftime("%Y%m%d%H%M")+"_"+str(Nseconds)+".npz", allow_pickle=True) as data:
+            order_1 = data["order_1"]
+            order_2 = data["order_2"][:,0,:,:]
+            times.extend( data["times"])
+
+        
+        # Reshape and stack scattering coefficients of all orders
+        order_1 = order_1.reshape(order_1.shape[0], -1)[:,:]
+        #order_2 = order_2[:,1,:].squeeze()[:,::-1]
+        
+        # order_2_vect = np.zeros((order_1.shape[0], int(order_1.shape[1]*order_2.shape[1])))
+        for i in range(order_1.shape[1]):
+            if i==0:
+                order_2_vect = order_2[:,i,:].squeeze()[:,:]
+            else:
+                order_2_vect = np.hstack((order_2_vect, order_2[:,i,:].squeeze()[:,:]))
+                
+            
+        
+        #print(order_1.shape, order_2.shape, order_2_vect.shape)
+        
+        order_12 = np.hstack((order_1, order_2_vect))
+        #print(order_12.shape)
+        
+        scattering_coefficients.extend( order_12 )
+    
+    
+    scattering_coefficients = np.array(scattering_coefficients)
+    
+    scattering_coefficients_vals_plot = np.zeros((scattering_coefficients.shape[1], Nclusters+1)) * np.nan
+    for cluster_idx in range(1,Nclusters+1): #Nclusters+2
+        
+        hit_idx = np.where(predictions == cluster_idx)[0]
+        
+        scattering_coefficients_vals_plot[:,cluster_idx-1] = np.nanmedian(scattering_coefficients[hit_idx,:], axis=0)
+    
+    
+    
+    network_data = pickle.load(open("example/scattering_network.pickle", "rb"))
+    center_f_1 =  network_data.banks[0].centers
+    center_f_2 =  network_data.banks[1].centers
+    
+    plt.figure(figsize=(6,8))
+    ax = plt.subplot(111)
+    
+    SC = ax.imshow(np.log10(scattering_coefficients_vals_plot), origin='upper', extent=(0.5, Nclusters+1.5, 0, scattering_coefficients.shape[1], ), 
+            aspect='auto', vmin=-9, vmax=-5, cmap=mygmt_cmaps, interpolation='nearest', rasterized=True)
+    cbar = plt.colorbar(SC, shrink=0.5, pad=0.15)
+    cbar.set_label(r'median $\log_{10}$(wavelet scattering coef.)', fontsize=10)
+    
+    plt.xticks(list(range(1,Nclusters+2)))
+    yticks_val = list(); yticks_label = list()
+    idx = order_2.shape[2]*0.5
+    for i in range(order_2.shape[1]):
+        yticks_val.append(idx)
+        yticks_label.append('2nd order '+str(int(order_2.shape[1]-i)).zfill(2))
+        idx += order_2.shape[2]
+    
+    yticks_val.append(idx-order_2.shape[2]*0.5+order_1.shape[1]*0.5)
+    yticks_label.append('1st order')
+    plt.yticks(ticks=yticks_val, labels=yticks_label)
+    
+    """
+    Hz ticks for 1st order
+    """
+    plt.text(Nclusters+0.5, idx-order_2.shape[2]*0.5+1, '- '+format(center_f_1[-1], ".2f")+' Hz', va='center', ha='left', color='k', fontsize=8)
+    plt.text(Nclusters+0.5, idx-order_2.shape[2]*0.5+0.5+10, '- '+format(center_f_1[-10], ".2f")+' Hz', va='center', ha='left', color='k', fontsize=8)
+    plt.text(Nclusters+0.5, idx-order_2.shape[2]*0.5+0.5+19, '- '+format(center_f_1[0], ".2f")+' Hz', va='center', ha='left', color='k', fontsize=8)
+    ax.axhline(y=idx-order_2.shape[2]*0.5, color='white', lw=1)
+    
+    """
+    Hz ticks for 2nd order
+    """
+    tik_ini = 1.5
+    for tik in range(len(center_f_1)):
+        
+        if tik==1:
+            plt.text(Nclusters+0.5, idx-tik_ini*order_2.shape[2]+0.5, '- '+format(center_f_2[-1], ".2f")+' Hz', va='center', ha='left', color='k', fontsize=8)
+            plt.text(Nclusters+0.5, idx-tik_ini*order_2.shape[2]+0.5+4, '- '+format(center_f_2[-5], ".2f")+' Hz', va='center', ha='left', color='k', fontsize=8)
+            plt.text(Nclusters+0.5, idx-tik_ini*order_2.shape[2]+0.5+9, '- '+format(center_f_2[0], ".2f")+' Hz', va='center', ha='left', color='k', fontsize=8)
+            
+        else:
+            plt.text(Nclusters+0.5, idx-tik_ini*order_2.shape[2]+0.5, '-', va='center', ha='left', color='k', fontsize=8)
+            plt.text(Nclusters+0.5, idx-tik_ini*order_2.shape[2]+0.5+4, '-', va='center', ha='left', color='k', fontsize=8)
+            plt.text(Nclusters+0.5, idx-tik_ini*order_2.shape[2]+0.5+9, '-', va='center', ha='left', color='k', fontsize=8)
+            
+        ax.axhline(y=idx-tik_ini*order_2.shape[2], color='white', lw=1)
+            
+
+        tik_ini += 1.0
+    
+    
+    plt.xlim(0.5, Nclusters+0.5)
+    
+    plt.xlabel('cluster', fontsize=12)
+    plt.minorticks_off()
+    for i in range(1,Nclusters+1):
+        ax.axvline(x=i+0.5, color='white', lw=1)
+        
+    ax.xaxis.set_ticks_position('bottom')
+    ax.yaxis.set_ticks_position('left')
+    
+    ustation = fiber[0:3] + used_channel_list[0]
+    plt.suptitle(ustation, fontsize=12)
+    
+    
+    for spine in ax.spines.values():
+        spine.set_linewidth(1.5) 
+    ax.tick_params(axis='both', which='major', length=4, width=1)  
+    ax.tick_params(axis='both', which='minor', length=2, width=0.75)
+    ax.tick_params(which='both', direction='out')
+    
+    plt.tight_layout()
+    
+    plt.savefig("Figure/scattering_coefficients_allclusters_"+ustation+"_"+hdf5_starttime_jst.strftime("%Y%m%d%H%M")+"_"+str(Nseconds)+".png", dpi=300, bbox_inches="tight")
+    plt.show()
+    
+    
+    ustation = 'noj'+used_channel_list[0]
+    clustering(ustation, threshold, pooling='max', savefig=True)
     hdf5_starttime_utc = hdf5_starttime_jst + datetime.timedelta(hours=-9)
     hdf5_file_list = []
     for mm in range(N_minute):
@@ -247,47 +387,63 @@ if __name__ == "__main__":
         
     stream_minute = Stream()
     for i in range(len(hdf5_file_list)):
-        stream_minute += read_hdf5(hdf5_file_list[i], fiber)
+        stream_minute += read_hdf5_singlechannel(hdf5_file_list[i], fiber, int(used_channel_list[0]))
     
     stream_minute.merge(method=1)
     stream_minute.resample(Fs, no_filter=False, window="hann")
     
     print(stream_minute)
 
-    stream_scat = Stream()
-    print('channels', used_channel_list)
-    for tr in stream_minute:
-        if tr.stats.station in used_channel_list:
-            stream_scat += tr.copy()
-    
+    stream_scat = stream_minute.select(station=used_channel_list[0])
+    ustation = stream_scat[0].stats.network.lower() + used_channel_list[0]
     
     fig = plt.figure(figsize=(12, 5), constrained_layout=True)
+    
+    
+    trace = stream_scat[0]
+        
+    print(trace.times("matplotlib"))
     ax1 = plt.subplot(211)
-    ax1.plot(np.arange(0, windL, 1/Fs), stream_scat[0].data, color='black', lw=0.5)
-    ax1.set_xlim(0, windL)
+    ax1.plot(trace.times("matplotlib"), stream_scat[0].data, color='black', lw=0.5)
+    ax1.set_xlim(hdf5_starttime_jst, hdf5_endttime_jst)
+    ax1.set_ylabel('strain', fontsize=12)
     for spine in ax1.spines.values():
         spine.set_linewidth(1.5) 
     ax1.tick_params(axis='both', which='major', length=4, width=1)  
     ax1.tick_params(axis='both', which='minor', length=2, width=0.75)
     ax1.tick_params(which='both', direction='out')
     
+    
+    
     ax2 = plt.subplot(212)
-    times_lapset = np.array( [ (times[_]-times[0]).total_seconds() for _ in range(len(times)) ] )
-    time_step = 0.5*(times_lapset[1]-times_lapset[0])
-    times_lapset += time_step
-    print(times_lapset)
-    ax2.scatter(times_lapset, predictions)
-    ax2.set_xlim(0, windL)
+    # 色をpredictionsの値に基づいてmatplotlibのカラーサイクル（C0, C1, ...）を使用
+    colors = [f'C{i-1}' for i in predictions]  # predictionsが1から始まる場合、C0から始めるために-1する
+    ax2.scatter(times, predictions, c=colors)
+    
+    # 凡例を追加
+    unique_predictions = np.unique(predictions)
+    for cluster_id in unique_predictions:
+        ax2.scatter([], [], c=f'C{cluster_id-1}', label=f'Cluster {cluster_id}')
+    #ax2.legend(loc='upper right', frameon=True)
+    ax2.legend(bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0, fontsize=10)
+    ax2.set_ylabel('cluster', fontsize=12)
+    ax2.set_xlim(hdf5_starttime_jst, hdf5_endttime_jst)
     ax2.set_ylim(predictions.min()-1, predictions.max()+1)
+    
     for spine in ax2.spines.values():
         spine.set_linewidth(1.5) 
     ax2.tick_params(axis='both', which='major', length=4, width=1)  
     ax2.tick_params(axis='both', which='minor', length=2, width=0.75)
     ax2.tick_params(which='both', direction='out')
     
+    
+    
+    plt.suptitle(ustation, fontsize=12)
+    
+    plt.savefig("Figure/clustering_"+ustation+"_"+hdf5_starttime_jst.strftime("%Y%m%d%H%M")+"_"+str(Nseconds)+".png", dpi=300, bbox_inches="tight")
     plt.show()
-    
-    
 
-    
+
+
+
 
