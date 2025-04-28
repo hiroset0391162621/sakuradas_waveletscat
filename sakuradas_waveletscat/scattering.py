@@ -137,21 +137,6 @@ def plot_scattcoef_imshow(ustation, trace_x, trace_y):
     
     plt.yticks(ticks=yticks_val, labels=yticks_label)
     
-    #ax.xaxis.set_major_locator(mdates.DayLocator(interval=2)) 
-    #ax.xaxis.set_minor_locator(mdates.DayLocator(interval=1)) 
-    
-    # # 開始時刻を必ずmajor axisに表示するために、開始時刻の分を基準に5分間隔を設定
-    # start_minute = times[0].minute
-    # # 5分間隔になるように調整 (start_minuteを含む5分間隔のリストを作成)
-    # byminute_values = [(start_minute + i*5) % 60 for i in range(12)]
-    # print('start_minute', start_minute, byminute_values)
-    
-    # # 5分ごとの主目盛りと1分ごとの副目盛りを設定
-    # ax.xaxis.set_major_locator(mdates.MinuteLocator(byminute=byminute_values))
-    # ax.xaxis.set_minor_locator(mdates.MinuteLocator(byminute=range(0, 60, 1)))
-    # ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
-    
-    
     ax.set_xlim(hdf5_starttime_jst, hdf5_endttime_jst)
     
     plt.gca().yaxis.set_minor_locator(plt.NullLocator())
@@ -204,15 +189,6 @@ def plot_scattcoef_imshow(ustation, trace_x, trace_y):
     
     ax0.set_ylim(-1,1)
     
-    # # 開始時刻を必ずmajor axisに表示するために、開始時刻の分を基準に5分間隔を設定
-    # start_minute = times[0].minute
-    # # 5分間隔になるように調整 (start_minuteを含む5分間隔のリストを作成)
-    # byminute_values = [(start_minute + i*5) % 60 for i in range(12)]
-    
-    # # 5分ごとの主目盛りと1分ごとの副目盛りを設定
-    # ax0.xaxis.set_major_locator(mdates.MinuteLocator(byminute=byminute_values))
-    # ax0.xaxis.set_minor_locator(mdates.MinuteLocator(byminute=range(0, 60, 1)))
-    # ax0.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
     
     
     ax0.set_xlim(hdf5_starttime_jst, hdf5_endttime_jst)
@@ -273,6 +249,7 @@ if __name__ == "__main__":
             stream_scat += tr.copy()
     
     print(stream_scat[0].stats)
+    ustation = stream_scat[0].stats.network.lower() + used_channel_list[0]
     
     # Extract segment length (from any layer)
     segment_duration = network_data.bins / network_data.sampling_rate
@@ -411,67 +388,69 @@ if __name__ == "__main__":
     )
     
     
-    # """
-    # PSD
-    # """
-    # timestamps_spec = list()
+    """
+    PSD
+    """
+    timestamps_spec = list()
 
-    # # Collect data and timestamps
+    # Collect data and timestamps
     
-    # Fcur_arr = list()
-    # for traces in stream_scat[channel_id].slide(segment_duration,segment_duration):
-    #     timestamps_spec.append(mdates.num2date(traces.times("matplotlib")[0])+datetime.timedelta(seconds=segment_duration_seconds*0.5))
-    #     print(mdates.num2date(traces.times("matplotlib")[0]))
-    #     traces_sub = traces.data #np.array([trace.data[:-1] for trace in traces])
-    #     freqVec, Fcur = spectral_func.spec(traces_sub, sampRate=sampling_rate_hertz, percent_costaper=0.05)
-    #     indd = np.where( (freqVec>=0.1) & (freqVec<=sampling_rate_hertz/2) )[0]
-    #     freqVec = freqVec[indd]
-    #     Fcur = Fcur[indd]
-    #     #freqVec = freqVec[::10]
-    #     #Fcur = Fcur[::10]
-    #     Fcur_arr.append(Fcur)
+    Fcur_arr = list()
+    for traces in stream_scat[channel_id].slide(segment_duration,segment_duration):
+        timestamps_spec.append(mdates.num2date(traces.times("matplotlib")[0])+datetime.timedelta(seconds=segment_duration_seconds*0.5))
+        print(mdates.num2date(traces.times("matplotlib")[0]))
+        traces_sub = traces.data #np.array([trace.data[:-1] for trace in traces])
+        freqVec, Fcur = spectral_func.spec(traces_sub, sampRate=sampling_rate_hertz, percent_costaper=0.05)
+        indd = np.where( (freqVec>=0.1) & (freqVec<=sampling_rate_hertz/2) )[0]
+        freqVec = freqVec[indd]
+        Fcur = Fcur[indd]
+        #freqVec = freqVec[::10]
+        #Fcur = Fcur[::10]
+        Fcur_arr.append(Fcur)
 
 
-    # Fcur_arr = np.log10(np.array(Fcur_arr))
+    Fcur_arr = np.log10(np.array(Fcur_arr))
     
     
-    # fig, ax = plt.subplots(2, sharex=True, figsize=(6,4))
+    fig, ax = plt.subplots(2, sharex=True, figsize=(6,4))
 
-    # # Plot the waveform
-    # ax[0].plot(trace.times("matplotlib"), trace.data/np.nanmax(np.abs(trace.data)), rasterized=True, lw=0.6)
-    # ax[0].set_ylim(-1,1)
+    # Plot the waveform
+    ax[0].plot(trace.times("matplotlib"), trace.data/np.nanmax(np.abs(trace.data)), rasterized=True, lw=0.6)
+    ax[0].set_ylim(-1,1)
     
     
-    # # First-order scattering coefficients
+    # First-order scattering coefficients
     
-    # ax[1].pcolormesh(timestamps_spec, freqVec, Fcur_arr.T, rasterized=True, cmap=plt.cm.inferno)
-    # # Axes labels
-    # ax[1].set_yscale("log")
-    # #ax[0].set_ylabel("Counts")
-    # ax[1].set_ylabel("fc (Hz)", fontsize=12)
+    ax[1].pcolormesh(timestamps_spec, freqVec, Fcur_arr.T, rasterized=True, cmap=plt.cm.inferno)
+    # Axes labels
+    ax[1].set_yscale("log")
+    #ax[0].set_ylabel("Counts")
+    ax[1].set_ylabel("fc (Hz)", fontsize=12)
     
-    # ax[0].set_xlim(hdf5_starttime_jst, hdf5_endttime_jst)
-    # ax[1].set_xlim(hdf5_starttime_jst, hdf5_endttime_jst)
+    ax[0].set_xlim(hdf5_starttime_jst, hdf5_endttime_jst)
+    ax[1].set_xlim(hdf5_starttime_jst, hdf5_endttime_jst)
     
     
-    # for spine in ax[0].spines.values():
-    #     spine.set_linewidth(1.5) 
-    # ax[0].tick_params(axis='both', which='major', length=4, width=1)  
-    # ax[0].tick_params(axis='both', which='minor', length=2, width=0.75)
-    # ax[0].tick_params(which='both', direction='out')
+    for spine in ax[0].spines.values():
+        spine.set_linewidth(1.5) 
+    ax[0].tick_params(axis='both', which='major', length=4, width=1)  
+    ax[0].tick_params(axis='both', which='minor', length=2, width=0.75)
+    ax[0].tick_params(which='both', direction='out')
     
-    # for spine in ax[1].spines.values():
-    #     spine.set_linewidth(1.5) 
-    # ax[1].tick_params(axis='both', which='major', length=4, width=1)  
-    # ax[1].tick_params(axis='both', which='minor', length=2, width=0.75)
-    # ax[1].tick_params(which='both', direction='out')
+    for spine in ax[1].spines.values():
+        spine.set_linewidth(1.5) 
+    ax[1].tick_params(axis='both', which='major', length=4, width=1)  
+    ax[1].tick_params(axis='both', which='minor', length=2, width=0.75)
+    ax[1].tick_params(which='both', direction='out')
 
-    # # Show
-    # plt.suptitle(stream_scat[0].stats.network.lower()+stream_scat[0].stats.station+" "+stream_scat[0].stats.starttime.strftime("%Y-%m-%d %H:%M:%S")+"-"+stream_scat[0].stats.endtime.strftime("%Y-%m-%d %H:%M:%S"), fontsize=12)
-    # plt.show()
+    # Show
+    plt.suptitle(stream_scat[0].stats.network.lower()+stream_scat[0].stats.station+" "+stream_scat[0].stats.starttime.strftime("%Y-%m-%d %H:%M:%S")+"-"+stream_scat[0].stats.endtime.strftime("%Y-%m-%d %H:%M:%S"), fontsize=12)
+    
+    plt.savefig("Figure/psd_"+ustation+"_"+hdf5_starttime_jst.strftime("%Y%m%d%H%M")+"_"+str(Nseconds)+".png", dpi=300, bbox_inches="tight")
+    plt.show()
 
     
     trace_x = trace.times("matplotlib")
     trace_y = trace.data/np.nanmax(np.abs(trace.data))
-    ustation = stream_scat[0].stats.network.lower() + used_channel_list[0]
+    
     plot_scattcoef_imshow(ustation, trace_x, trace_y)
