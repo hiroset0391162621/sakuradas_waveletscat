@@ -150,7 +150,7 @@ def cluster_and_plot_dendrogram( ustation, Z, threshold, default_color='black', 
     #         os.makedirs(figout_dirname, exist_ok=True)
     #         plt.savefig(figout_dirname+'/dendrogram.pdf', dpi=200)
     
-    plt.savefig("Figure/dendrogram_"+ustation+"_"+hdf5_starttime_jst.strftime("%Y%m%d%H%M")+"_"+str(Nseconds)+".png", dpi=300, bbox_inches="tight")
+    plt.savefig("Figure/"+fiber+"/"+hdf5_starttime_jst.strftime("%Y")+"/"+hdf5_starttime_jst.strftime("%m")+"/"+hdf5_starttime_jst.strftime("%d")+"/"+hdf5_starttime_jst.strftime("%H")+"/dendrogram_"+ustation+"_"+hdf5_starttime_jst.strftime("%Y%m%d%H%M")+"_"+str(Nseconds)+".png", dpi=300, bbox_inches="tight")
     plt.close()
 
 def clustering(ustation, threshold, pooling='max', savefig=False):
@@ -241,7 +241,7 @@ if __name__ == "__main__":
     
     Z = fastcluster.linkage(features, method='ward', metric='euclidean', preserve_input='True')
     
-    threshold = 8
+    threshold = 25
     predictions = fcluster(Z, threshold, criterion="distance")
     
     print(predictions)
@@ -369,33 +369,21 @@ if __name__ == "__main__":
     
     plt.tight_layout()
     
-    plt.savefig("Figure/scattering_coefficients_allclusters_"+ustation+"_"+hdf5_starttime_jst.strftime("%Y%m%d%H%M")+"_"+str(Nseconds)+".png", dpi=300, bbox_inches="tight")
+    plt.savefig("Figure/"+fiber+"/"+hdf5_starttime_jst.strftime("%Y")+"/"+hdf5_starttime_jst.strftime("%m")+"/"+hdf5_starttime_jst.strftime("%d")+"/"+hdf5_starttime_jst.strftime("%H")+"/scattering_coefficients_allclusters_"+ustation+"_"+hdf5_starttime_jst.strftime("%Y%m%d%H%M")+"_"+str(Nseconds)+".png", dpi=300, bbox_inches="tight")
     plt.close()
     
     
     ustation = 'noj'+used_channel_list[0]
     clustering(ustation, threshold, pooling='max', savefig=True)
-    hdf5_starttime_utc = hdf5_starttime_jst + datetime.timedelta(hours=-9)
-    hdf5_file_list = []
-    for mm in range(N_minute):
-        ts_utc = hdf5_starttime_utc + datetime.timedelta(minutes=mm)
-        filename = glob.glob(
-            hdf5_dirname+"decimator_"+ts_utc.strftime("%Y-%m-%d_%H.%M.%S")+"_UTC_"+"*.h5"
-        )[0] 
-        print(filename)     
-        hdf5_file_list.append(filename)
-        
-    stream_minute = Stream()
-    for i in range(len(hdf5_file_list)):
-        stream_minute += read_hdf5_singlechannel(hdf5_file_list[i], fiber, int(used_channel_list[0]))
     
-    stream_minute.merge(method=1)
-    stream_minute.resample(Fs, no_filter=False, window="hann")
+    
+    
+    stream_minute = obspy.read('trace.sac')  
     
     print(stream_minute)
 
     stream_scat = stream_minute.select(station=used_channel_list[0])
-    ustation = stream_scat[0].stats.network.lower() + used_channel_list[0]
+    ustation = fiber[0:3] + used_channel_list[0]
     
     fig = plt.figure(figsize=(12, 5), constrained_layout=True)
     
@@ -416,11 +404,9 @@ if __name__ == "__main__":
     
     
     ax2 = plt.subplot(212)
-    # 色をpredictionsの値に基づいてmatplotlibのカラーサイクル（C0, C1, ...）を使用
-    colors = [f'C{i-1}' for i in predictions]  # predictionsが1から始まる場合、C0から始めるために-1する
+    colors = [f'C{i-1}' for i in predictions]  
     ax2.scatter(times, predictions, c=colors)
     
-    # 凡例を追加
     unique_predictions = np.unique(predictions)
     for cluster_id in unique_predictions:
         ax2.scatter([], [], c=f'C{cluster_id-1}', label=f'Cluster {cluster_id}')
@@ -440,7 +426,7 @@ if __name__ == "__main__":
     
     plt.suptitle(ustation, fontsize=12)
     
-    plt.savefig("Figure/clustering_"+ustation+"_"+hdf5_starttime_jst.strftime("%Y%m%d%H%M")+"_"+str(Nseconds)+".png", dpi=300, bbox_inches="tight")
+    plt.savefig("Figure/"+fiber+"/"+hdf5_starttime_jst.strftime("%Y")+"/"+hdf5_starttime_jst.strftime("%m")+"/"+hdf5_starttime_jst.strftime("%d")+"/"+hdf5_starttime_jst.strftime("%H")+"/clustering_"+ustation+"_"+hdf5_starttime_jst.strftime("%Y%m%d%H%M")+"_"+str(Nseconds)+".png", dpi=300, bbox_inches="tight")
     plt.close()
 
 

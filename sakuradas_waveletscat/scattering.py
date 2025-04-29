@@ -13,7 +13,7 @@ import datetime
 from Params import *
 
 sys.path.append("utils/")
-from read_hdf5 import read_hdf5
+from read_hdf5 import read_hdf5, read_hdf5_singlechannel
 import spectral_func
 from util_func import cosTaper
 
@@ -201,7 +201,7 @@ def plot_scattcoef_imshow(ustation, trace_x, trace_y):
     
     plt.suptitle(ustation, fontsize=14, x=pos.x0+0.5*pos.width)
     
-    plt.savefig("Figure/scattering_coefficients_tchange_"+ustation+"_"+hdf5_starttime_jst.strftime("%Y%m%d%H%M")+"_"+str(Nseconds)+".png", dpi=300, bbox_inches="tight")
+    plt.savefig("Figure/"+fiber+"/"+hdf5_starttime_jst.strftime("%Y")+"/"+hdf5_starttime_jst.strftime("%m")+"/"+hdf5_starttime_jst.strftime("%d")+"/"+hdf5_starttime_jst.strftime("%H")+"/scattering_coefficients_tchange_"+ustation+"_"+hdf5_starttime_jst.strftime("%Y%m%d%H%M")+"_"+str(Nseconds)+".png", dpi=300, bbox_inches="tight")
     plt.close()
     
     
@@ -214,44 +214,43 @@ if __name__ == "__main__":
     
     
     
-    print("N_minute", N_minute)
-    
-    hdf5_starttime_utc = hdf5_starttime_jst + datetime.timedelta(hours=-9)
-    hdf5_file_list = []
-    for mm in range(N_minute):
-        ts_utc = hdf5_starttime_utc + datetime.timedelta(minutes=mm)
-        print(hdf5_dirname+"decimator_"+ts_utc.strftime("%Y-%m-%d_%H.%M.%S")+"_UTC_"+"*.h5")
-        filename = glob.glob(
-            hdf5_dirname+"decimator_"+ts_utc.strftime("%Y-%m-%d_%H.%M.%S")+"_UTC_"+"*.h5"
-        )[0] 
-        
-        hdf5_file_list.append(filename)
-        
-    stream_minute = Stream()
-    for i in range(len(hdf5_file_list)):
-        stream_minute += read_hdf5(hdf5_file_list[i], fiber)
-        
-
-    #stream_minute = stream_minute.select(station="0700")
-    stream_minute.merge(method=1)
-    stream_minute.resample(Fs, no_filter=False, window="hann")
-    
-    # stream_minute.taper(0.05, 'cosine')
-    # stream_minute.filter('bandpass', freqmin=1, freqmax=4, corners=4, zerophase=True)
-    # stream_minute.plot()
-    
-    # print(stream_minute)
-
-    # stream_scat = Stream()
-    # print('channels', used_channel_list)
-    # for tr in stream_minute:
-    #     if tr.stats.station in used_channel_list:
-    #         stream_scat += tr.copy()
-    
     
     for ch_idx, target_channel in enumerate(used_channel_list):
+        
+        
+        
+        hdf5_starttime_utc = hdf5_starttime_jst + datetime.timedelta(hours=-9)
+        hdf5_file_list = []
+        for mm in range(N_minute):
+            ts_utc = hdf5_starttime_utc + datetime.timedelta(minutes=mm)
+            
+            hdf5_dirname = "/Users/hirosetakashi/Volumes/noise_monitoring/noise_monitoring/DAS/Tohoku_15/Fiber-2_HDF5/"+ts_utc.strftime("%Y")+"/"+ts_utc.strftime("%m")+"/"+ts_utc.strftime("%d")+"/" 
+            
+            print( hdf5_dirname+"decimator_"+ts_utc.strftime("%Y-%m-%d_%H.%M.%S")+"_UTC_"+"*.h5")
+            filename = glob.glob(
+                hdf5_dirname+"decimator_"+ts_utc.strftime("%Y-%m-%d_%H.%M.%S")+"_UTC_"+"*.h5"
+            )[0] 
+            
+            print(filename)
+            
+            hdf5_file_list.append(filename)
+            
+        stream_minute = Stream()
+        for i in range(len(hdf5_file_list)):
+            stream_minute += read_hdf5_singlechannel(hdf5_file_list[i], fiber, int(used_channel_list[ch_idx]))
+            
+        stream_minute.merge(method=1)
+        
+        for tr in stream_minute:
+            if np.ma.is_masked(tr.data):
+                tr.data = tr.data.filled(0)  
+        
+        stream_minute.resample(Fs, no_filter=False, window="hann")
+        
             
         stream_scat = stream_minute.select(station=used_channel_list[ch_idx])
+        
+        stream_scat.write('trace.sac', format='sac')  
         
         print(stream_scat[0].stats)
         ustation = stream_scat[0].stats.network.lower() + used_channel_list[ch_idx]
@@ -451,7 +450,8 @@ if __name__ == "__main__":
         # Show
         plt.suptitle(stream_scat[0].stats.network.lower()+stream_scat[0].stats.station+" "+stream_scat[0].stats.starttime.strftime("%Y-%m-%d %H:%M:%S")+"-"+stream_scat[0].stats.endtime.strftime("%Y-%m-%d %H:%M:%S"), fontsize=12)
         
-        plt.savefig("Figure/psd_"+ustation+"_"+hdf5_starttime_jst.strftime("%Y%m%d%H%M")+"_"+str(Nseconds)+".png", dpi=300, bbox_inches="tight")
+        os.makedirs("Figure/"+fiber+"/"+hdf5_starttime_jst.strftime("%Y")+"/"+hdf5_starttime_jst.strftime("%m")+"/"+hdf5_starttime_jst.strftime("%d")+"/"+hdf5_starttime_jst.strftime("%H"), exist_ok=True)
+        plt.savefig("Figure/"+fiber+"/"+hdf5_starttime_jst.strftime("%Y")+"/"+hdf5_starttime_jst.strftime("%m")+"/"+hdf5_starttime_jst.strftime("%d")+"/"+hdf5_starttime_jst.strftime("%H")+"/psd_"+ustation+"_"+hdf5_starttime_jst.strftime("%Y%m%d%H%M")+"_"+str(Nseconds)+".png", dpi=300, bbox_inches="tight")
         plt.close()
 
         

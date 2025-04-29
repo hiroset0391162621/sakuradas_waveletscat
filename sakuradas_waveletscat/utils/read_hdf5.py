@@ -14,7 +14,6 @@ def phase2strain(phase, gauge_length):
     return (lamda*phase) / (4*np.pi*n*xi*gauge_length)
 
 
-# JSTに変換する関数
 def to_jst(utc_time):
     jst_time = utc_time + timedelta(hours=9)  
     return jst_time
@@ -114,6 +113,8 @@ def read_hdf5_singlechannel(filename, fiber, channel_idx):
         tr.stats.network = "NOJ"
         tr.stats.station = str(channel_idx).zfill(4)
     st_minute += tr
+    
+    
     
     # print(st_minute)
     # print(st_minute[0].stats)
