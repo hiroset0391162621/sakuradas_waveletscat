@@ -24,7 +24,7 @@ def read_hdf5(filename, fiber):
     
     with h5py.File(filename, "r") as h5file:
         raw_data = h5file['Acquisition/Raw[0]/RawData'][:]
-        raw_data = np.transpose(raw_data)
+        raw_data = raw_data.T
         
         
         start_time_str = h5file["/Acquisition/Raw[0]/RawDataTime"].attrs["StartTime"].decode('utf-8')
@@ -75,9 +75,11 @@ def read_hdf5(filename, fiber):
 def read_hdf5_singlechannel(filename, fiber, channel_idx):
     
     with h5py.File(filename, "r") as h5file:
-        raw_data = h5file['Acquisition/Raw[0]/RawData'][:]
-        raw_data = np.transpose(raw_data)
-        raw_data = raw_data[channel_idx, :]
+        raw_data = h5file['Acquisition/Raw[0]/RawData'][:, channel_idx]
+        raw_data = raw_data.T
+        #raw_data = h5file['Acquisition/Raw[0]/RawData'][:]
+        #raw_data = np.transpose(raw_data)
+        #raw_data = raw_data[channel_idx, :]
         
         start_time_str = h5file["/Acquisition/Raw[0]/RawDataTime"].attrs["StartTime"].decode('utf-8')
         start_time = datetime.fromisoformat(start_time_str.replace('Z', '+00:00'))
