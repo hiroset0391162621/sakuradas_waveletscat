@@ -678,7 +678,7 @@ if __name__ == "__main__":
         plt.close()
     
         # ---------------------------------------------
-        # Plot example waveforms per cluster (up to 8)
+        # Plot example waveforms per cluster (up to 10)
         # ---------------------------------------------
         os.system(f"rm -rf {output_dir}waveforms_*.png")  # remove previous to avoid confusion
         try:
@@ -703,19 +703,19 @@ if __name__ == "__main__":
                     diff = np.nan_to_num(cluster_feats - center, copy=False)
                     dists = np.linalg.norm(diff, axis=1)
                     order = np.argsort(dists)
-                    n_show = int(min(6, hit_idx.size))
+                    n_show = int(min(10, hit_idx.size))
                     chosen_idx = hit_idx[order[:n_show]]
                 except Exception:
                     # fallback to earliest-in-time if any issue arises
                     hit_times = times[hit_idx]
                     order = np.argsort(hit_times)
                     hit_idx = hit_idx[order]
-                    n_show = int(min(6, hit_idx.size))
+                    n_show = int(min(10, hit_idx.size))
                     chosen_idx = hit_idx[:n_show]
 
-                ncols = 1
+                ncols = 2
                 nrows = int(np.ceil(n_show / ncols))
-                fig, axes = plt.subplots(nrows, ncols, figsize=(4, 1.6 * nrows), sharex=False)
+                fig, axes = plt.subplots(nrows, ncols, figsize=(10, 1.6 * nrows), sharex=False)
                 axes = np.array(axes).reshape(nrows, ncols)
 
                 for k, idx_k in enumerate(chosen_idx):
