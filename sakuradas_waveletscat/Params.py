@@ -14,8 +14,8 @@ fiber = 'nojiri' #'round'
 # hdf5_starttime_jst = datetime.datetime(2023, 12, 1, 0, 0, 0)
 # hdf5_endttime_jst = datetime.datetime(2023, 12, 1, 0, 10, 0)
 
-hdf5_starttime_jst = datetime.datetime(2025, 5, 15, 0, 0, 0)
-hdf5_endttime_jst = datetime.datetime(2025, 5, 16, 0, 0, 0)
+hdf5_starttime_jst = datetime.datetime(2025, 5, 16, 0, 0, 0)
+hdf5_endttime_jst = datetime.datetime(2025, 5, 17, 0, 0, 0)
 
 Nseconds = int( (hdf5_endttime_jst-hdf5_starttime_jst).total_seconds() )
 N_minute = int( (hdf5_endttime_jst - hdf5_starttime_jst).total_seconds() / 60.0 )
@@ -27,3 +27,5 @@ hdf5_dirname_base = f"/Volumes/Tohoku_15/Fiber-2_HDF5/"
 hdf5_dirname = f"{hdf5_dirname_base}{hdf5_starttime_jst.year}/{hdf5_starttime_jst.month}/{hdf5_starttime_jst.day}/"  #"hdf5/"
 
 used_channel_list = [str(_).zfill(4) for _ in range(700, 705, 5)]   
+
+threshold = 45  ### dendrogram cut-off distance

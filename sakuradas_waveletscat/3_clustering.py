@@ -169,7 +169,7 @@ def clustering(ustation, threshold, pooling='max', savefig=False):
     cluster_and_plot_dendrogram(ustation, copy.deepcopy(Z), threshold, default_color='black', pooling=pooling, savefig=savefig)
     
     print("save dendrogram data", "dendrogram_"+hdf5_starttime_jst.strftime("%Y%m%d%H%M")+"_"+str(Nseconds)+'.npy')
-    np.save("dendrogram_"+hdf5_starttime_jst.strftime("%Y%m%d%H%M")+"_"+str(Nseconds)+'.npy', Z)
+    np.save("example/dendrogram_"+hdf5_starttime_jst.strftime("%Y%m%d%H%M")+"_"+str(Nseconds)+'.npy', Z)
 
 if __name__ == "__main__":
     
@@ -245,7 +245,7 @@ if __name__ == "__main__":
     
     Z = fastcluster.linkage(features, method='ward', metric='euclidean', preserve_input='True')
     
-    threshold = 25
+    
     predictions = fcluster(Z, threshold, criterion="distance")
     
     print(predictions)
@@ -393,14 +393,17 @@ if __name__ == "__main__":
     stream_scat = stream_minute.select(station=used_channel_list[0])
     ustation = fiber[0:3] + used_channel_list[0]
     
+    print('stream_scat[0].data', stream_scat[0].data)
+
     fig = plt.figure(figsize=(12, 5), constrained_layout=True)
     
     
     trace = stream_scat[0]
-        
-    print(trace.times("matplotlib"))
+    
+
+
     ax1 = plt.subplot(211)
-    ax1.plot(trace.times("matplotlib"), stream_scat[0].data, color='black', lw=0.5)
+    ax1.plot(trace.times("matplotlib"), stream_scat[0].data/np.nanmax(np.abs(stream_scat[0].data)), color='black', lw=0.5)
     ax1.set_xlim(hdf5_starttime_jst, hdf5_endttime_jst)
     ax1.set_ylabel('strain', fontsize=12)
     for spine in ax1.spines.values():

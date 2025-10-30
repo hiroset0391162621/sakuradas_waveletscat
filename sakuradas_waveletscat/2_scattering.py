@@ -230,23 +230,79 @@ if __name__ == "__main__":
         
         hdf5_starttime_utc = hdf5_starttime_jst + datetime.timedelta(hours=-9)
         hdf5_file_list = []
+        missing_files = []
         for mm in range(N_minute):
             ts_utc = hdf5_starttime_utc + datetime.timedelta(minutes=mm)
 
             hdf5_dirname = f"{hdf5_dirname_base}{ts_utc.strftime('%Y')}/{ts_utc.strftime('%m')}/{ts_utc.strftime('%d')}/"
 
-            print(hdf5_dirname + "decimator_" + ts_utc.strftime("%Y-%m-%d_%H.%M.%S") + "_UTC_" + "*.h5")
-            filename = glob.glob(
-                f"{hdf5_dirname}decimator_{ts_utc.strftime('%Y-%m-%d_%H.%M.%S')}_UTC_*.h5"
-            )[0]
+            print(hdf5_dirname + "decimator_" + ts_utc.strftime("%Y-%m-%d_%H.%M") + "*_UTC_" + "*.h5")
+            filenames = glob.glob(
+                f"{hdf5_dirname}decimator_{ts_utc.strftime('%Y-%m-%d_%H.%M')}*_UTC_*.h5"
+            )
             
-            print(filename)
-            
-            hdf5_file_list.append(filename)
+            if len(filenames) > 0:
+                filename = filenames[0]
+                print(filename)
+                hdf5_file_list.append(filename)
+                missing_files.append(False)
+            else:
+                print(f"Warning: HDF5 file not found for {ts_utc.strftime('%Y-%m-%d_%H.%M')} - will use zero data")
+                hdf5_file_list.append(None)
+                missing_files.append(True)
             
         stream_minute = Stream()
+        # 最初に正常に読み込めたファイルからサンプリングレートとdtypeを取得
+        original_sampling_rate = None
+        original_dtype = None
+        
         for i in range(len(hdf5_file_list)):
-            stream_minute += read_hdf5_singlechannel(hdf5_file_list[i], fiber, int(used_channel_list[ch_idx]))
+            if not missing_files[i]:
+                try:
+                    temp_stream = read_hdf5_singlechannel(hdf5_file_list[i], fiber, int(used_channel_list[ch_idx]))
+                    stream_minute += temp_stream
+                    # 最初に成功したファイルからサンプリングレートとdtypeを取得
+                    if original_sampling_rate is None and len(temp_stream) > 0:
+                        original_sampling_rate = temp_stream[0].stats.sampling_rate
+                        original_dtype = temp_stream[0].data.dtype
+                        print(f"Original sampling rate from HDF5: {original_sampling_rate} Hz")
+                        print(f"Original data type from HDF5: {original_dtype}")
+                except Exception as e:
+                    # HDF5ファイルの読み込みに失敗した場合（破損等）
+                    print(f"Error: Failed to read HDF5 file {hdf5_file_list[i]}: {str(e)}")
+                    print(f"Warning: Using zero data instead")
+                    missing_files[i] = True  # 失敗したファイルとしてマーク
+            
+            if missing_files[i]:
+                # HDF5ファイルが存在しない、または読み込みに失敗した場合、ゼロデータのTraceを生成
+                ts_utc = hdf5_starttime_utc + datetime.timedelta(minutes=i)
+                ts_jst = ts_utc + datetime.timedelta(hours=9)
+                
+                # サンプリングレートとdtypeが取得できていない場合はデフォルト値を使用
+                if original_sampling_rate is None:
+                    # HDF5ファイルから取得できなかった場合、一般的な値を使用（例: 250 Hz）
+                    original_sampling_rate = 250.0
+                    print(f"Warning: Using default sampling rate {original_sampling_rate} Hz for zero data")
+                if original_dtype is None:
+                    # デフォルトはfloat64
+                    original_dtype = np.float64
+                    print(f"Warning: Using default data type {original_dtype} for zero data")
+                
+                # 1分間のデータ（dtypeを明示的に指定）
+                num_samples = int(original_sampling_rate * 60)
+                zero_data = np.zeros(num_samples, dtype=original_dtype)
+                tr = obspy.Trace(zero_data)
+                tr.stats.starttime = obspy.UTCDateTime(ts_jst)
+                tr.stats.sampling_rate = original_sampling_rate
+                if fiber=='round':
+                    tr.stats.channel = "X"
+                    tr.stats.network = "SAK"
+                    tr.stats.station = str(int(used_channel_list[ch_idx])).zfill(4)
+                elif fiber=='nojiri':
+                    tr.stats.channel = "X"
+                    tr.stats.network = "NOJ"
+                    tr.stats.station = str(int(used_channel_list[ch_idx])).zfill(4)
+                stream_minute += tr
             
         stream_minute.merge(method=1)
         
