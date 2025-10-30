@@ -184,7 +184,7 @@ if __name__ == "__main__":
     # 複数日のデータを読み込むための設定
     # ==========================================
     start_date = datetime.datetime(2025, 5, 15, 0, 0, 0)  # 開始日時
-    end_date = datetime.datetime(2025, 5, 17, 0, 0, 0)    # 終了日時
+    end_date = datetime.datetime(2025, 5, 20, 0, 0, 0)    # 終了日時
     
     scattering_coefficients = []
     times = []
@@ -522,11 +522,12 @@ if __name__ == "__main__":
         for cluster_id in unique_predictions:
             hits = (preds_sorted == cluster_id).astype(int)
             cum_counts = np.cumsum(hits)
+            Nevents = cum_counts.max()
             max_cum = max(max_cum, int(cum_counts[-1]) if cum_counts.size > 0 else 0)
             if cluster_id<=7:
-                ax2.plot(times_sorted, cum_counts / cum_counts.max(), label=f'Cluster {cluster_id}', linewidth=1.5)
+                ax2.plot(times_sorted, cum_counts / Nevents, label=f'Cluster {cluster_id} ({int(Nevents)})', linewidth=1.5)
             if cluster_id>7:
-                ax2.plot(times_sorted, cum_counts / cum_counts.max(), label=f'Cluster {cluster_id}', linewidth=1.5, ls='--')
+                ax2.plot(times_sorted, cum_counts / Nevents, label=f'Cluster {cluster_id} ({int(Nevents)})', linewidth=1.5, ls='--')
 
         ax2.legend(bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0, fontsize=10)
         ax2.set_ylabel('cumulative number (norm.)', fontsize=12)
@@ -546,9 +547,8 @@ if __name__ == "__main__":
             ax2.xaxis.set_major_locator(mdates.HourLocator(byhour=range(0,24), interval=3))
             ax2.xaxis.set_minor_locator(mdates.HourLocator(byhour=range(0,24), interval=1))
         
-        
-        
-        plt.suptitle(f"{ustation} ({start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')})", fontsize=12)
+
+        plt.suptitle(f"{ustation} {start_date.strftime('%Y.%m.%d')}-{end_date.strftime('%Y.%m.%d')}", fontsize=12)
 
         output_filename_clustering = f"{output_dir}clustering_{ustation}_{date_range_str}.png"
         print(f"save clustering figure: {output_filename_clustering}")
@@ -556,6 +556,109 @@ if __name__ == "__main__":
         plt.savefig(output_filename_clustering, dpi=300, bbox_inches="tight")
         plt.close()
     
+        # ---------------------------------------------
+        # Plot example waveforms per cluster (up to 10)
+        # ---------------------------------------------
+        try:
+            trace_full = stream_scat[0]
+            # Use configured segment duration seconds from Params
+            seg_dur = float(segment_duration_seconds)
+            half = seg_dur / 2.0
+            x_ref = None  # reuse x-axis if lengths match
+
+            # Prepare cluster IDs sorted
+            cluster_ids = np.unique(predictions)
+            for cid in cluster_ids:
+                # indices for this cluster
+                hit_idx = np.where(predictions == cid)[0]
+                if hit_idx.size == 0:
+                    continue
+                # choose up to 10 examples closest to the cluster center in feature space
+                try:
+                    cluster_feats = features[hit_idx]
+                    center = np.nanmean(cluster_feats, axis=0)
+                    # compute distances to centroid (robust to NaNs)
+                    diff = np.nan_to_num(cluster_feats - center, copy=False)
+                    dists = np.linalg.norm(diff, axis=1)
+                    order = np.argsort(dists)
+                    n_show = int(min(10, hit_idx.size))
+                    chosen_idx = hit_idx[order[:n_show]]
+                except Exception:
+                    # fallback to earliest-in-time if any issue arises
+                    hit_times = times[hit_idx]
+                    order = np.argsort(hit_times)
+                    hit_idx = hit_idx[order]
+                    n_show = int(min(10, hit_idx.size))
+                    chosen_idx = hit_idx[:n_show]
+
+                ncols = 2
+                nrows = int(np.ceil(n_show / ncols))
+                fig, axes = plt.subplots(nrows, ncols, figsize=(10, 1.6 * nrows), sharex=False)
+                axes = np.array(axes).reshape(nrows, ncols)
+
+                for k, idx_k in enumerate(chosen_idx):
+                    row = k // ncols
+                    col = k % ncols
+                    axk = axes[row, col]
+
+                    t_center = times[idx_k]
+                    t1 = obspy.UTCDateTime(t_center - datetime.timedelta(seconds=half))
+                    t2 = obspy.UTCDateTime(t_center + datetime.timedelta(seconds=half))
+                    seg = trace_full.slice(t1, t2)
+
+                    y = seg.data.astype(float) if seg.data is not None else np.array([])
+                    # optional: high-pass filter for visibility
+                    try:
+                        seg_f = seg.copy()
+                        seg_f.detrend('linear')
+                        seg_f.filter('highpass', freq=0.1, corners=2, zerophase=True)
+                        y = seg_f.data.astype(float)
+                    except Exception:
+                        pass
+
+                    if y.size == 0:
+                        axk.text(0.5, 0.5, 'no data', ha='center', va='center')
+                        axk.axis('off')
+                        continue
+
+                    # normalize
+                    amp = np.nanmax(np.abs(y)) if np.any(np.isfinite(y)) else 1.0
+                    if amp == 0:
+                        amp = 1.0
+                    y_norm = y / amp
+
+                    # x axis in seconds relative to center
+                    x = np.linspace(-half, half, y_norm.size)
+                    print()
+                    axk.plot(x, y_norm, lw=0.6, color=f'C{cid-1}')
+                    axk.set_xlim(-half, half)
+                    axk.set_ylim(-1.2, 1.2)
+                    axk.set_title(t_center.strftime('%Y-%m-%d %H:%M:%S'), fontsize=9)
+                    axk.grid(False)
+                    for spine in axk.spines.values():
+                        spine.set_linewidth(1.0)
+                    axk.tick_params(axis='both', which='major', length=4, width=1)
+                    axk.tick_params(axis='both', which='minor', length=2, width=0.75)
+
+                # hide unused subplots
+                total_axes = nrows * ncols
+                for k in range(n_show, total_axes):
+                    row = k // ncols
+                    col = k % ncols
+                    axes[row, col].axis('off')
+
+                fig.suptitle(f"{ustation} cluster {cid} (N={np.sum(predictions==cid)})\nHigh-pass 0.1 Hz, normalized", fontsize=12)
+                fig.supylabel('Normalized amplitude', fontsize=12)
+                fig.supxlabel('time [s]', fontsize=12)
+                fig.tight_layout(rect=[0, 0.03, 1, 0.95])
+
+                out_waveforms = f"{output_dir}waveforms_cluster{cid}_{ustation}_{date_range_str}.png"
+                print(f"save cluster example waveforms: {out_waveforms}")
+                fig.savefig(out_waveforms, dpi=300, bbox_inches='tight')
+                plt.close(fig)
+        except Exception as e:
+            print(f"Waveform example plotting skipped due to error: {e}")
+
     print(f"\n=== Clustering completed for multi-day data ===")
     print(f"Date range: {start_date} to {end_date}")
     print(f"Total samples: {len(predictions)}")
