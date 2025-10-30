@@ -468,7 +468,7 @@ if __name__ == "__main__":
 
                 print(f"1st-order scattering shape for plotting (N,F1): {o1_reduced.shape}")
 
-                fig = plt.figure(figsize=(6, 6))
+                fig = plt.figure(figsize=(8, 6))
                 ax = plt.subplot(111)
                 eps = 1e-12
                 fvec = np.asarray(center_f_1)
@@ -479,24 +479,13 @@ if __name__ == "__main__":
                     # Median across samples within the cluster => (F1,)
                     spec_med = np.nanmedian(o1_reduced[idx, :], axis=0)
                     # Plot exactly against center_f_1
-                    if cid<=7:
-                        ax.plot(fvec, np.log10(spec_med + eps), lw=1.5, label=f"Cluster {cid}")
-                    else:
-                        ax.plot(fvec, np.log10(spec_med + eps), lw=1.5, label=f"Cluster {cid}", ls='--')
-
+                    ax.plot(fvec, np.log10(spec_med + eps), lw=1.5, label=f"Cluster {cid}")
 
                 ax.set_xscale('log')
-                ax.set_xlabel('Frequency [Hz]', fontsize=14)
-                ax.set_ylabel('median log10(1st-order scattering coef.)', fontsize=14)
+                ax.set_xlabel('Frequency [Hz]')
+                ax.set_ylabel('median log10(1st-order scattering coef.)')
                 ax.grid(True, which='both', ls=':', alpha=0.5)
                 ax.legend(loc='best', fontsize=9, ncols=2)
-
-                for spine in ax.spines.values():
-                    spine.set_linewidth(1.5) 
-                ax.tick_params(axis='both', which='major', length=4, width=1)  
-                ax.tick_params(axis='both', which='minor', length=2, width=0.75)
-                ax.tick_params(which='both', direction='out')
-
                 fig.tight_layout()
 
                 out_spec = f"{output_dir}order1_spectra_overlay_{ustation}_{date_range_str}.png"

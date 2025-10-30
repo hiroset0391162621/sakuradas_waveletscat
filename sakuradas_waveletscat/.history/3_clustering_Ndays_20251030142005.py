@@ -446,63 +446,34 @@ if __name__ == "__main__":
     # ---------------------------------------------
     try:
         if (order_1_all is not None) and (order_1_all.shape[0] == len(predictions)):
-            # Identify which axis in order_1_all corresponds to center_f_1
-            center_len = len(center_f_1)
-            freq_axis = None
-            for ax_i in range(1, order_1_all.ndim):
-                if order_1_all.shape[ax_i] == center_len:
-                    freq_axis = ax_i
-                    break
-
-            if freq_axis is None:
-                print("Skip 1st-order spectra overlay: no axis matches len(center_f_1).")
-            else:
-                # Move frequency axis to position 1 => (N, F1, ...)
-                o1_moved = np.moveaxis(order_1_all, freq_axis, 1)
-                # Reduce all remaining trailing axes by median => (N, F1)
-                if o1_moved.ndim > 2:
-                    reduce_axes = tuple(range(2, o1_moved.ndim))
-                    o1_reduced = np.nanmedian(o1_moved, axis=reduce_axes)
-                else:
-                    o1_reduced = o1_moved  # already (N, F1)
-
-                print(f"1st-order scattering shape for plotting (N,F1): {o1_reduced.shape}")
-
-                fig = plt.figure(figsize=(6, 6))
-                ax = plt.subplot(111)
-                eps = 1e-12
+            # reshape to (N, F1, -1) and reduce trailing dims
+            o1 = order_1_all.reshape(order_1_all.shape[0], order_1_all.shape[1], -1)
+            o1_reduced = np.nanmedian(o1, axis=2)  # (N, F1)
+            print(f"1st-order scattering shape for plotting: {o1_reduced.shape}")
+            fig = plt.figure(figsize=(8, 6))
+            ax = plt.subplot(111)
+            eps = 1e-12
+            for cid in np.unique(predictions):
+                idx = np.where(predictions == cid)[0]
+                if idx.size == 0:
+                    continue
+                spec_med = np.nanmedian(o1_reduced[idx, :], axis=0)
+                print(f"Cluster {cid}: {spec_med}")
                 fvec = np.asarray(center_f_1)
-                for cid in np.unique(predictions):
-                    idx = np.where(predictions == cid)[0]
-                    if idx.size == 0:
-                        continue
-                    # Median across samples within the cluster => (F1,)
-                    spec_med = np.nanmedian(o1_reduced[idx, :], axis=0)
-                    # Plot exactly against center_f_1
-                    if cid<=7:
-                        ax.plot(fvec, np.log10(spec_med + eps), lw=1.5, label=f"Cluster {cid}")
-                    else:
-                        ax.plot(fvec, np.log10(spec_med + eps), lw=1.5, label=f"Cluster {cid}", ls='--')
+                m = min(len(spec_med), len(fvec))
+                ax.plot(fvec[:m], np.log10(spec_med[:m] + eps), lw=1.5, label=f"Cluster {cid}")
 
+            ax.set_xscale('log')
+            ax.set_xlabel('Frequency [Hz]')
+            ax.set_ylabel('median log10(1st-order scattering coef.)')
+            ax.grid(True, which='both', ls=':', alpha=0.5)
+            ax.legend(loc='best', fontsize=9, ncols=2)
+            fig.tight_layout()
 
-                ax.set_xscale('log')
-                ax.set_xlabel('Frequency [Hz]', fontsize=14)
-                ax.set_ylabel('median log10(1st-order scattering coef.)', fontsize=14)
-                ax.grid(True, which='both', ls=':', alpha=0.5)
-                ax.legend(loc='best', fontsize=9, ncols=2)
-
-                for spine in ax.spines.values():
-                    spine.set_linewidth(1.5) 
-                ax.tick_params(axis='both', which='major', length=4, width=1)  
-                ax.tick_params(axis='both', which='minor', length=2, width=0.75)
-                ax.tick_params(which='both', direction='out')
-
-                fig.tight_layout()
-
-                out_spec = f"{output_dir}order1_spectra_overlay_{ustation}_{date_range_str}.png"
-                print(f"save 1st-order spectra overlay: {out_spec}")
-                fig.savefig(out_spec, dpi=300, bbox_inches='tight')
-                plt.close(fig)
+            out_spec = f"{output_dir}order1_spectra_overlay_{ustation}_{date_range_str}.png"
+            print(f"save 1st-order spectra overlay: {out_spec}")
+            fig.savefig(out_spec, dpi=300, bbox_inches='tight')
+            plt.close(fig)
         else:
             print("Skip 1st-order spectra overlay: order_1_all missing or length mismatch.")
     except Exception as e:

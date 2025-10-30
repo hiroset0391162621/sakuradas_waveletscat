@@ -304,7 +304,7 @@ if __name__ == "__main__":
     # 複数日のscattering coefficientsを再度読み込む（プロット用）
     scattering_coefficients = []
     times_plot = []
-    order_1_all = []  # collect raw 1st-order coefficients for per-cluster spectra
+    order_1_all = []  # keep raw 1st-order coefficients to build spectra later
     
     current_date = start_date
     while current_date < end_date:
@@ -334,6 +334,7 @@ if __name__ == "__main__":
                 
                 order_12 = np.hstack((order_1, order_2_vect))
                 scattering_coefficients.extend(order_12)
+                # accumulate raw first-order for spectra
                 order_1_all.append(order_1_day_raw)
             except Exception as e:
                 print(f"  Error loading {filename}: {e}")
@@ -442,67 +443,47 @@ if __name__ == "__main__":
     plt.close()
 
     # ---------------------------------------------
-    # Plot median 1st-order scattering spectra per cluster (overlay)
+    # Overlay 1st-order spectra per cluster in one figure
     # ---------------------------------------------
     try:
         if (order_1_all is not None) and (order_1_all.shape[0] == len(predictions)):
-            # Identify which axis in order_1_all corresponds to center_f_1
-            center_len = len(center_f_1)
-            freq_axis = None
-            for ax_i in range(1, order_1_all.ndim):
-                if order_1_all.shape[ax_i] == center_len:
-                    freq_axis = ax_i
-                    break
+            # collapse any non-frequency dims: assume shape (N, F1, ...)
+            o1 = order_1_all
+            o1 = o1.reshape(o1.shape[0], o1.shape[1], -1)
+            # reduce across trailing dimension (e.g., time/scale pooling)
+            o1_reduced = np.nanmedian(o1, axis=2)  # shape (N, F1)
 
-            if freq_axis is None:
-                print("Skip 1st-order spectra overlay: no axis matches len(center_f_1).")
-            else:
-                # Move frequency axis to position 1 => (N, F1, ...)
-                o1_moved = np.moveaxis(order_1_all, freq_axis, 1)
-                # Reduce all remaining trailing axes by median => (N, F1)
-                if o1_moved.ndim > 2:
-                    reduce_axes = tuple(range(2, o1_moved.ndim))
-                    o1_reduced = np.nanmedian(o1_moved, axis=reduce_axes)
-                else:
-                    o1_reduced = o1_moved  # already (N, F1)
-
-                print(f"1st-order scattering shape for plotting (N,F1): {o1_reduced.shape}")
-
-                fig = plt.figure(figsize=(6, 6))
-                ax = plt.subplot(111)
-                eps = 1e-12
+            fig_spec, ax_spec = plt.subplots(figsize=(8, 4.5))
+            unique_clusters = np.unique(predictions)
+            eps = 1e-12
+            for cid in unique_clusters:
+                idx = np.where(predictions == cid)[0]
+                if idx.size == 0:
+                    continue
+                spec_med = np.nanmedian(o1_reduced[idx, :], axis=0)  # (F1,)
+                # guard for length mismatch with center frequencies
                 fvec = np.asarray(center_f_1)
-                for cid in np.unique(predictions):
-                    idx = np.where(predictions == cid)[0]
-                    if idx.size == 0:
-                        continue
-                    # Median across samples within the cluster => (F1,)
-                    spec_med = np.nanmedian(o1_reduced[idx, :], axis=0)
-                    # Plot exactly against center_f_1
-                    if cid<=7:
-                        ax.plot(fvec, np.log10(spec_med + eps), lw=1.5, label=f"Cluster {cid}")
-                    else:
-                        ax.plot(fvec, np.log10(spec_med + eps), lw=1.5, label=f"Cluster {cid}", ls='--')
+                if spec_med.shape[0] != fvec.shape[0]:
+                    # try best-effort alignment by truncation to min length
+                    m = min(spec_med.shape[0], fvec.shape[0])
+                    spec_plot = spec_med[:m]
+                    f_plot = fvec[:m]
+                else:
+                    spec_plot = spec_med
+                    f_plot = fvec
+                ax_spec.plot(f_plot, np.log10(spec_plot + eps), label=f"Cluster {cid}", lw=1.5)
 
+            ax_spec.set_xscale('log')
+            ax_spec.set_xlabel('Frequency [Hz]')
+            ax_spec.set_ylabel('median log10(1st-order scattering coef.)')
+            ax_spec.grid(True, which='both', ls=':', alpha=0.5)
+            ax_spec.legend(loc='best', fontsize=9, ncols=2)
+            fig_spec.tight_layout()
 
-                ax.set_xscale('log')
-                ax.set_xlabel('Frequency [Hz]', fontsize=14)
-                ax.set_ylabel('median log10(1st-order scattering coef.)', fontsize=14)
-                ax.grid(True, which='both', ls=':', alpha=0.5)
-                ax.legend(loc='best', fontsize=9, ncols=2)
-
-                for spine in ax.spines.values():
-                    spine.set_linewidth(1.5) 
-                ax.tick_params(axis='both', which='major', length=4, width=1)  
-                ax.tick_params(axis='both', which='minor', length=2, width=0.75)
-                ax.tick_params(which='both', direction='out')
-
-                fig.tight_layout()
-
-                out_spec = f"{output_dir}order1_spectra_overlay_{ustation}_{date_range_str}.png"
-                print(f"save 1st-order spectra overlay: {out_spec}")
-                fig.savefig(out_spec, dpi=300, bbox_inches='tight')
-                plt.close(fig)
+            out_spec = f"{output_dir}order1_spectra_overlay_{ustation}_{date_range_str}.png"
+            print(f"save 1st-order spectra overlay: {out_spec}")
+            fig_spec.savefig(out_spec, dpi=300, bbox_inches='tight')
+            plt.close(fig_spec)
         else:
             print("Skip 1st-order spectra overlay: order_1_all missing or length mismatch.")
     except Exception as e:

@@ -486,8 +486,8 @@ if __name__ == "__main__":
 
 
                 ax.set_xscale('log')
-                ax.set_xlabel('Frequency [Hz]', fontsize=14)
-                ax.set_ylabel('median log10(1st-order scattering coef.)', fontsize=14)
+                ax.set_xlabel('Frequency [Hz]', fontsize=12)
+                ax.set_ylabel('median log10(1st-order scattering coef.)', fontsize=12)
                 ax.grid(True, which='both', ls=':', alpha=0.5)
                 ax.legend(loc='best', fontsize=9, ncols=2)
 
