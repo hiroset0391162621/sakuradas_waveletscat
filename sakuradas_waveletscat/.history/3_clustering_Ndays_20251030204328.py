@@ -263,7 +263,7 @@ if __name__ == "__main__":
     n_times, n_coeff = scattering_coefficients.shape
     print("Collected {} samples of {} dimensions each.".format(n_times, n_coeff))
 
-    model = FastICA(n_components=10, whiten="unit-variance", random_state=42)
+    model = FastICA(n_components=5, whiten="unit-variance", random_state=42)
     #model = FastICA(n_components=10, whiten="unit-variance", random_state=42)
     #model = SparsePCA(n_components=10, random_state=0, ridge_alpha=1.0)
     features = model.fit_transform(scattering_coefficients)
