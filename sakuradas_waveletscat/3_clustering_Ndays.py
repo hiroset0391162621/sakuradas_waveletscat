@@ -614,6 +614,7 @@ if __name__ == "__main__":
         ax1 = plt.subplot(211)
         ax1.plot(trace.times("matplotlib"), stream_scat[0].data, color='black', lw=0.5)
         ax1.set_xlim(start_date, end_date)
+        ax1.set_ylim(-1e-7, 1e-7)
         ax1.set_ylabel('strain', fontsize=12)
         for spine in ax1.spines.values():
             spine.set_linewidth(1.5) 
@@ -769,7 +770,7 @@ if __name__ == "__main__":
                     col = k % ncols
                     axes[row, col].axis('off')
 
-                fig.suptitle(f"{ustation} cluster {cid} (N={np.sum(predictions==cid)})\nHigh-pass 0.1 Hz, normalized", fontsize=18)
+                fig.suptitle(f"{ustation} cluster {cid}", fontsize=16)
                 fig.supylabel('Normalized amplitude', fontsize=14)
                 fig.supxlabel('time [s]', fontsize=14)
                 fig.tight_layout(rect=[0, 0.03, 1, 0.97])
