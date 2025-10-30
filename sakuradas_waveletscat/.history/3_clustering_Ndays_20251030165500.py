@@ -680,7 +680,6 @@ if __name__ == "__main__":
         # ---------------------------------------------
         # Plot example waveforms per cluster (up to 10)
         # ---------------------------------------------
-        os.system(f"rm -rf {output_dir}waveforms_*.png")  # remove previous to avoid confusion
         try:
             trace_full = stream_scat[0]
             # Use configured segment duration seconds from Params

@@ -623,7 +623,7 @@ if __name__ == "__main__":
         ### 複数日の場合は適切な間隔に設定
         if (end_date - start_date).days > 1:
             ax1.xaxis.set_major_locator(mdates.DayLocator(interval=1))
-            ax1.xaxis.set_minor_locator(mdates.HourLocator(byhour=[0, 6, 12, 18]))
+            ax1.xaxis.set_minor_locator(mdates.HourLocator(byhour=[0, 3, 6, 12, 15, 18, 21]))
         else:
             ax1.xaxis.set_major_locator(mdates.HourLocator(byhour=range(0,24), interval=3))
             ax1.xaxis.set_minor_locator(mdates.HourLocator(byhour=range(0,24), interval=1))
@@ -680,7 +680,6 @@ if __name__ == "__main__":
         # ---------------------------------------------
         # Plot example waveforms per cluster (up to 10)
         # ---------------------------------------------
-        os.system(f"rm -rf {output_dir}waveforms_*.png")  # remove previous to avoid confusion
         try:
             trace_full = stream_scat[0]
             # Use configured segment duration seconds from Params

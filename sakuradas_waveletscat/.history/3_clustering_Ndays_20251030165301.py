@@ -338,14 +338,6 @@ if __name__ == "__main__":
         Nseconds_day = int((next_date - current_date).total_seconds())
         filename = f"example/scattering_coefficients{current_date.strftime('%Y%m%d%H%M')}_{Nseconds_day}.npz"
         
-        # Skip data from 2025-05-11 to 2025-05-14 (inclusive)
-        skip_start = datetime.datetime(2025, 5, 11, 0, 0, 0)
-        skip_end = datetime.datetime(2025, 5, 15, 0, 0, 0)  # exclusive end
-        if skip_start <= current_date < skip_end:
-            print(f"Skipping for plot (excluded period 2025-05-11 to 2025-05-14): {filename}")
-            current_date = next_date
-            continue
-        
         if os.path.exists(filename):
             print(f"Loading for plot: {filename}")
             try:
@@ -623,7 +615,7 @@ if __name__ == "__main__":
         ### 複数日の場合は適切な間隔に設定
         if (end_date - start_date).days > 1:
             ax1.xaxis.set_major_locator(mdates.DayLocator(interval=1))
-            ax1.xaxis.set_minor_locator(mdates.HourLocator(byhour=[0, 6, 12, 18]))
+            ax1.xaxis.set_minor_locator(mdates.HourLocator(byhour=[0, 3, 6, 12, 15, 18, 21]))
         else:
             ax1.xaxis.set_major_locator(mdates.HourLocator(byhour=range(0,24), interval=3))
             ax1.xaxis.set_minor_locator(mdates.HourLocator(byhour=range(0,24), interval=1))
@@ -680,7 +672,6 @@ if __name__ == "__main__":
         # ---------------------------------------------
         # Plot example waveforms per cluster (up to 10)
         # ---------------------------------------------
-        os.system(f"rm -rf {output_dir}waveforms_*.png")  # remove previous to avoid confusion
         try:
             trace_full = stream_scat[0]
             # Use configured segment duration seconds from Params

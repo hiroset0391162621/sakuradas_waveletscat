@@ -199,14 +199,6 @@ if __name__ == "__main__":
         Nseconds_day = int((next_date - current_date).total_seconds())
         filename = f"example/scattering_coefficients{current_date.strftime('%Y%m%d%H%M')}_{Nseconds_day}.npz"
         
-        # Skip data from 2025-05-11 to 2025-05-14 (inclusive)
-        skip_start = datetime.datetime(2025, 5, 11, 0, 0, 0)
-        skip_end = datetime.datetime(2025, 5, 15, 0, 0, 0)  # exclusive end
-        if skip_start <= current_date < skip_end:
-            print(f"Skipping (excluded period 2025-05-11 to 2025-05-14): {filename}")
-            current_date = next_date
-            continue
-        
         # ファイルが存在するかチェック
         if os.path.exists(filename):
             print(f"Loading: {filename}")
@@ -244,20 +236,17 @@ if __name__ == "__main__":
     # Filter out samples with extremely small scattering coefficients
     # Compute maximum absolute value across all coefficients for each sample
     max_abs_per_sample = np.nanmax(np.abs(scattering_coefficients), axis=1)
-    threshold_amplitude = 1e-9  # threshold for filtering out near-zero data
+    threshold_amplitude = 1e-12  # threshold for filtering out near-zero data
     valid_mask = max_abs_per_sample > threshold_amplitude
     
-    print(f"\n=== Filtering samples with max_abs < {threshold_amplitude} ===")
-    print(f"Original samples: {len(valid_mask)}")
-    print(f"Filtered out: {np.sum(~valid_mask)} samples")
-    print(f"Remaining: {np.sum(valid_mask)} samples")
-    print(f"Max abs values range: min={np.nanmin(max_abs_per_sample):.2e}, max={np.nanmax(max_abs_per_sample):.2e}")
+    print(f"Filtering: {np.sum(~valid_mask)} samples removed (max_abs < {threshold_amplitude})")
+    print(f"Remaining samples: {np.sum(valid_mask)} / {len(valid_mask)}")
     
     scattering_coefficients = scattering_coefficients[valid_mask]
     times = times[valid_mask]
     
-    # transform into log (add small epsilon to avoid log(0))
-    scattering_coefficients = np.log(np.maximum(scattering_coefficients, 1e-20))
+    # transform into log
+    scattering_coefficients = np.log(scattering_coefficients)
 
     # print info about shape
     n_times, n_coeff = scattering_coefficients.shape
@@ -338,14 +327,6 @@ if __name__ == "__main__":
         Nseconds_day = int((next_date - current_date).total_seconds())
         filename = f"example/scattering_coefficients{current_date.strftime('%Y%m%d%H%M')}_{Nseconds_day}.npz"
         
-        # Skip data from 2025-05-11 to 2025-05-14 (inclusive)
-        skip_start = datetime.datetime(2025, 5, 11, 0, 0, 0)
-        skip_end = datetime.datetime(2025, 5, 15, 0, 0, 0)  # exclusive end
-        if skip_start <= current_date < skip_end:
-            print(f"Skipping for plot (excluded period 2025-05-11 to 2025-05-14): {filename}")
-            current_date = next_date
-            continue
-        
         if os.path.exists(filename):
             print(f"Loading for plot: {filename}")
             try:
@@ -373,27 +354,7 @@ if __name__ == "__main__":
     
     scattering_coefficients = np.array(scattering_coefficients)
     times_plot = np.array(times_plot)
-    order_1_all_raw = np.concatenate(order_1_all, axis=0) if len(order_1_all) > 0 else None
-    
-    # Apply the same filtering as used during clustering
-    max_abs_per_sample_plot = np.nanmax(np.abs(scattering_coefficients), axis=1)
-    threshold_amplitude = 1e-9  # MUST match the threshold used during clustering
-    valid_mask_plot = max_abs_per_sample_plot > threshold_amplitude
-    
-    print(f"\n=== Filtering for plot with max_abs < {threshold_amplitude} ===")
-    print(f"Original samples for plot: {len(valid_mask_plot)}")
-    print(f"Filtered out: {np.sum(~valid_mask_plot)} samples")
-    print(f"Remaining: {np.sum(valid_mask_plot)} samples")
-    print(f"Max abs values range: min={np.nanmin(max_abs_per_sample_plot):.2e}, max={np.nanmax(max_abs_per_sample_plot):.2e}")
-    
-    scattering_coefficients = scattering_coefficients[valid_mask_plot]
-    times_plot = times_plot[valid_mask_plot]
-    order_1_all = order_1_all_raw[valid_mask_plot] if order_1_all_raw is not None else None
-    
-    # Verify that filtered sample counts match predictions
-    if len(scattering_coefficients) != len(predictions):
-        print(f"WARNING: Mismatch between filtered samples ({len(scattering_coefficients)}) and predictions ({len(predictions)})")
-        print("This should not happen if filtering is consistent. Using only overlapping indices.")
+    order_1_all = np.concatenate(order_1_all, axis=0) if len(order_1_all) > 0 else None
     
     scattering_coefficients_vals_plot = np.zeros((scattering_coefficients.shape[1], Nclusters+1)) * np.nan
     for cluster_idx in range(1,Nclusters+1): #Nclusters+2
@@ -623,7 +584,7 @@ if __name__ == "__main__":
         ### 複数日の場合は適切な間隔に設定
         if (end_date - start_date).days > 1:
             ax1.xaxis.set_major_locator(mdates.DayLocator(interval=1))
-            ax1.xaxis.set_minor_locator(mdates.HourLocator(byhour=[0, 6, 12, 18]))
+            ax1.xaxis.set_minor_locator(mdates.HourLocator(byhour=[0, 3, 6, 12, 15, 18, 21]))
         else:
             ax1.xaxis.set_major_locator(mdates.HourLocator(byhour=range(0,24), interval=3))
             ax1.xaxis.set_minor_locator(mdates.HourLocator(byhour=range(0,24), interval=1))
@@ -680,7 +641,6 @@ if __name__ == "__main__":
         # ---------------------------------------------
         # Plot example waveforms per cluster (up to 10)
         # ---------------------------------------------
-        os.system(f"rm -rf {output_dir}waveforms_*.png")  # remove previous to avoid confusion
         try:
             trace_full = stream_scat[0]
             # Use configured segment duration seconds from Params
