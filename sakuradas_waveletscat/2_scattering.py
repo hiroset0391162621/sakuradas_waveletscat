@@ -315,8 +315,10 @@ if __name__ == "__main__":
             
         stream_scat = stream_minute.select(station=used_channel_list[ch_idx])
         
-        stream_scat.write('trace.sac', format='sac')  
-        
+        ### sac/noj0700_202505160000_86400.sac
+        outsac_fname = f"sac/{stream_scat[0].stats.network.lower()}{stream_scat[0].stats.station}_{hdf5_starttime_jst.strftime('%Y%m%d%H%M')}_{Nseconds}.sac"
+        stream_scat.write(outsac_fname, format='sac')  
+
         print(stream_scat[0].stats)
         ustation = stream_scat[0].stats.network.lower() + used_channel_list[ch_idx]
         
